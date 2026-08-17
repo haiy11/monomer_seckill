@@ -10,15 +10,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * 秒杀核心服务（最简版本，无优化，先把业务流程跑通）
+ * 秒杀核心服务（最简版本，无优化，先把业务流程跑通）。
  *
- * 流程：校验商品 -> 校验重复抢购 -> 原子扣库存 -> 创建订单
- * 后续 P2 阶段再引入 Redis 预扣库存 + Lua 脚本等优化。
+ * <p>处理流程：校验商品 → 校验重复抢购 → 原子扣库存 → 创建订单，
+ * 整个流程在同一事务内完成，保证扣库存与建订单的一致性。
+ * 后续 P2 阶段再引入 Redis 预扣库存 + Lua 脚本等优化。</p>
+ *
+ * @author haiy
+ * @date 2026/08/17
  */
 @Service
 public class SeckillService {
 
+    /** 商品 Mapper */
     private final GoodsMapper goodsMapper;
+
+    /** 订单 Mapper */
     private final SeckillOrderMapper orderMapper;
 
     public SeckillService(GoodsMapper goodsMapper, SeckillOrderMapper orderMapper) {
@@ -26,8 +33,19 @@ public class SeckillService {
         this.orderMapper = orderMapper;
     }
 
+    /**
+     * 秒杀下单。
+     *
+     * <p>校验商品存在且未重复抢购后，原子扣减库存并创建订单；
+     * 任一环节失败均直接返回失败结果（失败路径未产生任何写操作，无需回滚）。</p>
+     *
+     * @param goodsId 商品ID
+     * @param userId  用户ID
+     * @return 成功时携带订单ID；失败时携带错误信息
+     */
     @Transactional
     public Result<Long> seckill(Long goodsId, Long userId) {
+        // 参数校验
         if (goodsId == null || userId == null) {
             return Result.fail("参数错误：goodsId 和 userId 不能为空");
         }

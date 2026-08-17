@@ -10,6 +10,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * 商品查询接口。
+ *
+ * @author haiy
+ * @date 2026/08/17
+ */
 @RestController
 @RequestMapping("/api/goods")
 public class GoodsController {
@@ -20,11 +26,22 @@ public class GoodsController {
         this.goodsService = goodsService;
     }
 
+    /**
+     * 查询商品列表。
+     *
+     * @return 商品列表
+     */
     @GetMapping
     public Result<List<Goods>> list() {
         return Result.ok(goodsService.list());
     }
 
+    /**
+     * 查询商品详情。
+     *
+     * @param id 商品ID
+     * @return 商品详情
+     */
     @GetMapping("/{id}")
     public Result<Goods> detail(@PathVariable Long id) {
         return Result.ok(goodsService.getById(id));
