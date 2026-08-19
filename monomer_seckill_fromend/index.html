@@ -1,163 +1,1002 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>秒杀 Demo</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
-      max-width: 900px;
-      margin: 40px auto;
-      padding: 0 20px;
-      background: #f5f6f8;
-      color: #333;
-    }
-    h1 { font-size: 24px; margin-bottom: 8px; }
-    .sub { color: #888; font-size: 13px; margin-bottom: 20px; }
-    .toolbar {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 16px;
-    }
-    .toolbar input {
-      width: 160px;
-      padding: 8px 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
-    }
-    .card {
-      background: #fff;
-      border-radius: 10px;
-      padding: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 12px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
-    th { color: #888; font-weight: 500; }
-    .stock { color: #e74c3c; font-weight: 600; }
-    button {
-      padding: 7px 16px;
-      border: none;
-      border-radius: 6px;
-      background: #e74c3c;
-      color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-    }
-    button:hover { background: #c0392b; }
-    button:disabled { background: #bbb; cursor: not-allowed; }
-    #msg {
-      margin-top: 16px;
-      padding: 12px;
-      border-radius: 6px;
-      font-size: 14px;
-      display: none;
-    }
-    #msg.ok { background: #e8f8ef; color: #27ae60; display: block; }
-    #msg.err { background: #fdecea; color: #e74c3c; display: block; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>秒杀商城</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif; background: #f5f6fa; color: #333; }
+header { background: #1f2d3d; color: #fff; display: flex; align-items: center; padding: 0 20px; height: 56px; gap: 24px; position: sticky; top: 0; z-index: 100; }
+.logo { font-size: 18px; font-weight: 700; white-space: nowrap; }
+#nav { display: flex; gap: 4px; flex: 1; overflow-x: auto; }
+.tab { color: #cfd8e3; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px; white-space: nowrap; }
+.tab:hover { background: rgba(255,255,255,.12); color: #fff; }
+.tab.active { background: #409eff; color: #fff; }
+#userBox { font-size: 13px; display: flex; gap: 8px; align-items: center; white-space: nowrap; color: #cfd8e3; }
+main { max-width: 1100px; margin: 20px auto; padding: 0 16px; }
+.page { display: none; }
+.page.active { display: block; }
+h2 { margin: 8px 0 16px; font-size: 20px; }
+h3 { margin: 20px 0 10px; font-size: 16px; border-left: 4px solid #409eff; padding-left: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.card { background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.card-img { width: 100%; height: 150px; object-fit: cover; background: #eef0f4; display: block; }
+.card-body { padding: 12px; }
+.card-title { font-weight: 600; margin-bottom: 6px; }
+.card-desc { color: #888; font-size: 13px; min-height: 36px; margin-bottom: 8px; }
+.card-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.price { color: #e34d59; font-weight: 700; font-size: 18px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; color: #fff; }
+.badge.s0 { background: #f7ba2a; }
+.badge.s1 { background: #07c160; }
+.badge.s2 { background: #999; }
+.badge.s3 { background: #e34d59; }
+.buy-row { display: flex; gap: 8px; align-items: center; }
+.qty-input { width: 64px; padding: 6px 8px; border: 1px solid #dcdfe6; border-radius: 6px; }
+.btn { padding: 8px 14px; border: none; border-radius: 6px; background: #eef1f6; color: #333; cursor: pointer; font-size: 14px; }
+.btn:hover { opacity: .88; }
+.btn.primary { background: #409eff; color: #fff; }
+.btn.success { background: #07c160; color: #fff; }
+.btn.danger { background: #e34d59; color: #fff; }
+.btn.warning { background: #f7ba2a; color: #fff; }
+.btn.sm { padding: 4px 10px; font-size: 12px; }
+.tbl { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.tbl th, .tbl td { padding: 10px 12px; border-bottom: 1px solid #f0f2f5; text-align: left; font-size: 14px; }
+.tbl th { background: #f7f8fa; font-weight: 600; }
+.tbl tr:last-child td { border-bottom: none; }
+input, select, textarea { padding: 8px 10px; border: 1px solid #dcdfe6; border-radius: 6px; font-size: 14px; font-family: inherit; width: 100%; }
+form .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.empty, .loading, .error { padding: 30px; text-align: center; color: #999; background: #fff; border-radius: 10px; margin: 10px 0; }
+.error { color: #e34d59; }
+.cart-footer { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-top: 14px; }
+.total b { color: #e34d59; font-size: 20px; }
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .two-col { grid-template-columns: 1fr; } }
+.panel { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; }
+.login-hint { color: #999; font-size: 13px; padding: 4px 0; }
+#toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); background: rgba(0,0,0,.82); color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .25s; z-index: 999; max-width: 80%; }
+#toast.show { opacity: 1; }
+#toast.err { background: #c0392b; }
+.toolbar { margin: 16px 0; }
+.mt10 { margin-top: 10px; }
+.note { color: #999; font-size: 12px; margin: 4px 0 10px; }
+</style>
 </head>
 <body>
-  <h1>秒杀 Demo</h1>
-  <div class="sub">单体秒杀 · 最简版本（MySQL + MyBatis-Plus，Redis 预留）</div>
 
-  <div class="toolbar">
-    <label>用户ID：</label>
-    <input id="userId" type="number" value="1001" />
-    <button id="refreshBtn" style="background:#555;">刷新商品</button>
-  </div>
+<header>
+  <div class="logo">⚡ 秒杀商城</div>
+  <nav id="nav"></nav>
+  <div id="userBox"></div>
+</header>
 
-  <div class="card">
-    <table>
-      <thead>
-        <tr>
-          <th>商品ID</th>
-          <th>名称</th>
-          <th>描述</th>
-          <th>价格</th>
-          <th>剩余库存</th>
-          <th>操作</th>
-        </tr>
-      </thead>
-      <tbody id="goodsBody">
-        <tr><td colspan="6" style="text-align:center;color:#999;">加载中...</td></tr>
-      </tbody>
-    </table>
-  </div>
+<main>
 
-  <div id="msg"></div>
+  <!-- 商城 -->
+  <section id="sec-home" class="page active">
+    <h2>商城</h2>
+    <div id="goodsList" class="grid"></div>
+  </section>
 
-  <script>
-    const API = 'http://localhost:8080';
+  <!-- 秒杀商品 -->
+  <section id="sec-seckill" class="page">
+    <h2>秒杀商品</h2>
+    <div id="seckillList" class="grid"></div>
+  </section>
 
-    function showMsg(text, ok) {
-      const el = document.getElementById('msg');
-      el.textContent = text;
-      el.className = ok ? 'ok' : 'err';
+  <!-- 购物车 -->
+  <section id="sec-cart" class="page">
+    <h2>购物车</h2>
+    <div id="cartBox"></div>
+  </section>
+
+  <!-- 我的订单 -->
+  <section id="sec-orders" class="page">
+    <h2>我的订单</h2>
+    <h3>正常订单</h3>
+    <div id="orderList"></div>
+    <h3>秒杀订单</h3>
+    <div id="seckillOrderList"></div>
+  </section>
+
+  <!-- 账户 -->
+  <section id="sec-account" class="page">
+    <h2>账户</h2>
+    <div id="accountBox"></div>
+  </section>
+
+  <!-- 商家中心 -->
+  <section id="sec-merchant" class="page">
+    <h2>商家中心</h2>
+    <div id="merchantBox">
+      <div class="panel">
+        <h3 id="merchantGoodsFormTitle">① 新增商品</h3>
+        <form id="goodsForm" onsubmit="submitGoods(event)">
+          <input type="hidden" id="goodsFormId">
+          <div class="row">
+            <input id="gName" placeholder="商品名称" required>
+            <input id="gPrice" type="number" step="0.01" min="0" placeholder="价格（元）" required>
+            <input id="gStock" type="number" min="0" placeholder="库存" required>
+            <input id="gImage" placeholder="图片 URL（可选）">
+          </div>
+          <textarea id="gDesc" rows="2" placeholder="商品描述"></textarea>
+          <div class="mt10">
+            <button type="submit" class="btn primary" id="goodsFormBtn">新增商品</button>
+            <button type="button" class="btn" onclick="resetGoodsForm()">重置</button>
+          </div>
+        </form>
+        <h3>我的商品</h3>
+        <div id="merchantGoodsList"></div>
+      </div>
+      <div class="panel">
+        <h3>② 申请秒杀</h3>
+        <form id="seckillApplyForm" onsubmit="submitSeckillApply(event)">
+          <input type="hidden" id="skFormId">
+          <div class="row">
+            <input id="skName" placeholder="秒杀商品名称" required>
+            <input id="skPrice" type="number" step="0.01" min="0" placeholder="秒杀价（元）" required>
+            <input id="skStock" type="number" min="1" placeholder="秒杀库存" required>
+            <input id="skStart" type="datetime-local" required>
+            <input id="skEnd" type="datetime-local" required>
+          </div>
+          <div class="note">开始/结束时间格式如 2026-08-19T18:00:00</div>
+          <button type="submit" class="btn primary">提交秒杀申请</button>
+        </form>
+        <h3>我的秒杀申请</h3>
+        <div id="merchantSeckillList"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 管理后台 -->
+  <section id="sec-admin" class="page">
+    <h2>管理后台</h2>
+    <div id="adminContent">
+      <div class="panel">
+        <h3>商家申请审核</h3>
+        <div id="adminApplies"></div>
+      </div>
+      <div class="panel">
+        <h3>商品审核</h3>
+        <div id="adminGoodsList"></div>
+      </div>
+      <div class="panel">
+        <h3>秒杀商品审核</h3>
+        <div id="adminSeckillList"></div>
+      </div>
+      <div class="panel">
+        <h3>订单列表</h3>
+        <div id="adminOrders"></div>
+        <h3>秒杀订单列表</h3>
+        <div id="adminSeckillOrders"></div>
+      </div>
+      <div class="panel">
+        <h3>运维</h3>
+        <button class="btn danger" onclick="resetStock()">重置 Redis 库存</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ============ 常量与基础工具 ============ */
+const API = 'http://localhost:7099';
+
+const ROLE_TEXT = { 0: '普通用户', 1: '商家', 2: '管理员' };
+const GOODS_STATUS = { 0: '待审核', 1: '已上架', 2: '已下架', 3: '已拒绝' };
+const SECKILL_STATUS = { 0: '待审核', 1: '已上架', 2: '已拒绝', 3: '已下架' };
+const SECKILL_STATE = { 0: '未开始', 1: '进行中', 2: '已结束' };
+const APPLY_STATUS = { 0: '待审核', 1: '已通过', 2: '已拒绝' };
+const ORDER_STATUS = { 0: '待支付', 1: '已支付', 2: '已取消', 3: '超时关闭' };
+
+/* 全局数据缓存（渲染时用索引引用，避免拼字符串转义问题） */
+let curGoods = [];
+let curSeckill = [];
+let curCart = [];
+let curOrders = [];
+let curSeckillOrders = [];
+let curMerchantGoods = [];
+let curMerchantSeckill = [];
+let curAdminApplies = [];
+let curAdminGoods = [];
+let curAdminSeckill = [];
+
+let currentTab = 'home';
+let toastTimer = null;
+
+function getToken() { return localStorage.getItem('mall_token') || ''; }
+function getAdminToken() { return getToken(); }
+function getUser() {
+  try { return JSON.parse(localStorage.getItem('mall_user') || 'null'); } catch (e) { return null; }
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtPrice(p) {
+  const n = Number(p);
+  return isNaN(n) ? '0.00' : n.toFixed(2);
+}
+function fmtTime(t) {
+  if (t === null || t === undefined || t === '') return '—';
+  return String(t).replace('T', ' ').slice(0, 16);
+}
+function parseTime(t) {
+  if (!t) return NaN;
+  return new Date(String(t).replace('T', ' ').replace(/-/g, '/')).getTime();
+}
+
+/* ============ 统一请求封装 ============ */
+async function request(path, opts = {}) {
+  const { method = 'GET', body, token } = opts;
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const init = { method, headers };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  let res;
+  try {
+    res = await fetch(API + path, init);
+  } catch (e) {
+    throw new Error('网络请求失败：' + e.message);
+  }
+  let json;
+  try {
+    json = await res.json();
+  } catch (e) {
+    throw new Error('响应解析失败（HTTP ' + res.status + '）');
+  }
+  if (json.code !== 200) throw new Error(json.msg || ('请求失败（code=' + json.code + '）'));
+  return json.data;
+}
+
+function toast(msg, ok = true) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (ok ? '' : ' err');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2600);
+}
+
+/* ============ 顶部导航 / 头部 ============ */
+const TABS = [
+  { key: 'home', label: '商城', roles: 'all' },
+  { key: 'seckill', label: '秒杀商品', roles: 'all' },
+  { key: 'cart', label: '购物车', roles: 'login' },
+  { key: 'orders', label: '我的订单', roles: 'login' },
+  { key: 'account', label: '账户', roles: 'all' },
+  { key: 'merchant', label: '商家中心', roles: 'merchant' },
+  { key: 'admin', label: '管理后台', roles: 'admin' }
+];
+
+function visibleTabs() {
+  const u = getUser();
+  const hasUser = !!getToken();
+  return TABS.filter(t => {
+    if (t.roles === 'all') return true;
+    if (t.roles === 'login') return hasUser;
+    if (t.roles === 'merchant') return !!(u && u.role === 1);
+    if (t.roles === 'admin') return !!(u && u.role === 2);
+    return true;
+  });
+}
+
+function buildNav() {
+  const nav = document.getElementById('nav');
+  nav.innerHTML = visibleTabs().map(t =>
+    '<a class="tab' + (t.key === currentTab ? ' active' : '') + '" data-key="' + t.key + '" onclick="switchTab(\'' + t.key + '\')">' + t.label + '</a>'
+  ).join('');
+}
+
+function updateHeader() {
+  const box = document.getElementById('userBox');
+  const u = getUser();
+  const parts = [];
+  if (u && getToken()) {
+    parts.push('<span>' + esc(u.nickname || u.username) + '（' + (ROLE_TEXT[u.role] || u.role) + '）</span><button class="btn sm" onclick="logout()">退出登录</button>');
+  }
+  if (!parts.length) parts.push('<span>未登录</span>');
+  box.innerHTML = parts.join('');
+}
+
+function rebuild() {
+  buildNav();
+  updateHeader();
+  renderAccount();
+}
+
+/* ============ Tab 切换 ============ */
+const loaders = {
+  'home': loadGoods,
+  'seckill': loadSeckill,
+  'cart': loadCart,
+  'orders': loadOrders,
+  'account': renderAccount,
+  'merchant': loadMerchantPage,
+  'admin': renderAdmin
+};
+
+function switchTab(key) {
+  currentTab = key;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const sec = document.getElementById('sec-' + key);
+  if (sec) sec.classList.add('active');
+  document.querySelectorAll('#nav .tab').forEach(t => t.classList.toggle('active', t.dataset.key === key));
+  if (loaders[key]) loaders[key]();
+}
+
+/* ============ 商城 ============ */
+async function loadGoods() {
+  const box = document.getElementById('goodsList');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    curGoods = await request('/api/goods');
+    renderGoods(curGoods);
+  } catch (e) {
+    box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderGoods(list) {
+  const box = document.getElementById('goodsList');
+  if (!list.length) { box.innerHTML = '<div class="empty">暂无商品</div>'; return; }
+  box.innerHTML = list.map((g, i) => {
+    const statusBadge = g.status !== undefined && g.status !== 1
+      ? ' <span class="badge s' + g.status + '">' + (GOODS_STATUS[g.status] || g.status) + '</span>' : '';
+    const action = getToken()
+      ? '<div class="buy-row"><input type="number" class="qty-input" id="qty-' + i + '" min="1" value="1"><button class="btn primary" onclick="addToCart(' + i + ')">加入购物车</button></div>'
+      : '<div class="login-hint">登录后即可加入购物车</div>';
+    return '<div class="card">'
+      + (g.imageUrl ? '<img class="card-img" src="' + esc(g.imageUrl) + '" onerror="this.style.display=\'none\'">' : '')
+      + '<div class="card-body">'
+      + '<div class="card-title">' + esc(g.name) + statusBadge + '</div>'
+      + '<div class="card-desc">' + esc(g.description) + '</div>'
+      + '<div class="card-meta"><span class="price">¥' + fmtPrice(g.price) + '</span><span>库存：' + g.stock + '</span></div>'
+      + action
+      + '</div></div>';
+  }).join('');
+}
+
+async function addToCart(i) {
+  const g = curGoods[i];
+  if (!g) return;
+  const q = parseInt(document.getElementById('qty-' + i).value, 10) || 1;
+  try {
+    await request('/api/cart', { method: 'POST', body: { goodsId: g.id, quantity: q }, token: getToken() });
+    toast('已加入购物车');
+  } catch (e) { toast(e.message, false); }
+}
+
+/* ============ 秒杀商品 ============ */
+async function loadSeckill() {
+  const box = document.getElementById('seckillList');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    curSeckill = await request('/api/seckill-goods');
+    renderSeckill(curSeckill);
+  } catch (e) {
+    box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function seckillStateOf(s) {
+  if (s.seckillState !== undefined && s.seckillState !== null) return s.seckillState;
+  const now = Date.now();
+  const st = parseTime(s.startTime);
+  const en = parseTime(s.endTime);
+  if (isNaN(st) || isNaN(en)) return 2;
+  if (now < st) return 0;
+  if (now > en) return 2;
+  return 1;
+}
+
+function renderSeckill(list) {
+  const box = document.getElementById('seckillList');
+  if (!list.length) { box.innerHTML = '<div class="empty">暂无秒杀商品</div>'; return; }
+  box.innerHTML = list.map((s, i) => {
+    const st = seckillStateOf(s);
+    const stText = SECKILL_STATE[st] || st;
+    let action;
+    if (st === 1 && getToken()) {
+      action = '<button class="btn success" onclick="doSeckill(' + i + ')">立即秒杀</button>';
+    } else if (st === 1) {
+      action = '<div class="login-hint">登录后即可秒杀</div>';
+    } else {
+      action = '<div class="login-hint">' + stText + '，暂不可抢购</div>';
     }
+    return '<div class="card">'
+      + '<div class="card-body">'
+      + '<div class="card-title">' + esc(s.name) + '</div>'
+      + '<div class="card-meta"><span class="price">¥' + fmtPrice(s.seckillPrice) + '</span></div>'
+      + '<div class="card-desc">秒杀库存：' + s.seckillStock + '　<span class="badge s' + st + '">' + stText + '</span></div>'
+      + '<div class="card-desc">' + fmtTime(s.startTime) + ' ~ ' + fmtTime(s.endTime) + '</div>'
+      + '<div class="mt10">' + action + '</div>'
+      + '</div></div>';
+  }).join('');
+}
 
-    async function loadGoods() {
-      const body = document.getElementById('goodsBody');
-      body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">加载中...</td></tr>';
-      try {
-        const res = await fetch(API + '/api/goods');
-        const result = await res.json();
-        if (result.code !== 200) {
-          body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#e74c3c;">' + result.msg + '</td></tr>';
-          return;
-        }
-        const list = result.data || [];
-        if (list.length === 0) {
-          body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#999;">暂无商品</td></tr>';
-          return;
-        }
-        body.innerHTML = list.map(g => `
-          <tr>
-            <td>${g.id}</td>
-            <td>${g.name}</td>
-            <td>${g.description || ''}</td>
-            <td>￥${g.price}</td>
-            <td class="stock">${g.stock}</td>
-            <td><button data-id="${g.id}" ${g.stock <= 0 ? 'disabled' : ''}>立即抢购</button></td>
-          </tr>
-        `).join('');
-      } catch (e) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#e74c3c;">请求失败，请确认后端已启动</td></tr>';
-        showMsg('无法连接后端 ' + API + '（请先启动 Spring Boot）', false);
-      }
+async function doSeckill(i) {
+  const s = curSeckill[i];
+  if (!s) return;
+  if (!confirm('确认以 ¥' + fmtPrice(s.seckillPrice) + ' 抢购「' + s.name + '」？')) return;
+  try {
+    const orderNo = await request('/api/seckill/' + s.id, { method: 'POST', token: getToken() });
+    toast('秒杀成功！订单号：' + orderNo + '，请到「我的订单」支付');
+    loadSeckill();
+    loadOrders();
+  } catch (e) { toast(e.message, false); }
+}
+
+/* ============ 购物车 ============ */
+async function loadCart() {
+  const box = document.getElementById('cartBox');
+  if (!getToken()) { box.innerHTML = '<div class="empty">请先登录后查看购物车</div>'; return; }
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    curCart = await request('/api/cart', { token: getToken() });
+    renderCart(curCart);
+  } catch (e) {
+    box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderCart(items) {
+  const box = document.getElementById('cartBox');
+  if (!items.length) { box.innerHTML = '<div class="empty">购物车是空的，去「商城」逛逛吧</div>'; return; }
+  const total = items.reduce((s, it) => s + Number(it.amount || 0), 0);
+  box.innerHTML =
+    '<table class="tbl"><thead><tr><th>商品</th><th>单价</th><th>数量</th><th>小计</th><th>操作</th></tr></thead><tbody>'
+    + items.map((it, i) =>
+      '<tr>'
+      + '<td>' + esc(it.goodsName) + '</td>'
+      + '<td>¥' + fmtPrice(it.price) + '</td>'
+      + '<td><input type="number" class="qty-input" min="1" value="' + it.quantity + '" onchange="cartQtyChange(' + i + ', this.value)"></td>'
+      + '<td>¥' + fmtPrice(it.amount) + '</td>'
+      + '<td><button class="btn danger sm" onclick="cartRemove(' + i + ')">删除</button></td>'
+      + '</tr>'
+    ).join('')
+    + '</tbody></table>'
+    + '<div class="cart-footer"><span class="total">合计：<b>¥' + fmtPrice(total) + '</b></span>'
+    + '<button class="btn primary" onclick="checkout()">结算下单</button></div>';
+}
+
+async function cartQtyChange(i, val) {
+  const it = curCart[i];
+  if (!it) return;
+  let q = parseInt(val, 10);
+  if (!q || q < 1) q = 1;
+  try {
+    await request('/api/cart/' + it.goodsId + '?quantity=' + q, { method: 'PUT', token: getToken() });
+    toast('数量已更新');
+  } catch (e) { toast(e.message, false); }
+  loadCart();
+}
+
+async function cartRemove(i) {
+  const it = curCart[i];
+  if (!it) return;
+  try {
+    await request('/api/cart/' + it.goodsId, { method: 'DELETE', token: getToken() });
+    toast('已删除');
+  } catch (e) { toast(e.message, false); }
+  loadCart();
+}
+
+async function checkout() {
+  if (!curCart.length) { toast('购物车为空', false); return; }
+  if (!confirm('确认结算购物车中的 ' + curCart.length + ' 件商品？')) return;
+  try {
+    const order = await request('/api/order/checkout', { method: 'POST', token: getToken() });
+    toast('下单成功！订单号：' + order.orderNo + '，请及时支付');
+    loadCart();
+    loadOrders();
+  } catch (e) { toast(e.message, false); }
+}
+
+/* ============ 我的订单 ============ */
+async function loadOrders() {
+  const oBox = document.getElementById('orderList');
+  const sBox = document.getElementById('seckillOrderList');
+  if (!getToken()) {
+    oBox.innerHTML = '<div class="empty">请先登录</div>';
+    sBox.innerHTML = '';
+    return;
+  }
+  oBox.innerHTML = '<div class="loading">加载中…</div>';
+  sBox.innerHTML = '';
+  try {
+    const [orders, sek] = await Promise.all([
+      request('/api/order/list', { token: getToken() }),
+      request('/api/order/seckill/list', { token: getToken() })
+    ]);
+    curOrders = orders || [];
+    curSeckillOrders = sek || [];
+    renderOrders();
+  } catch (e) {
+    oBox.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>';
+  }
+}
+
+function renderOrders() {
+  document.getElementById('orderList').innerHTML = renderOrderTable(curOrders, true);
+  document.getElementById('seckillOrderList').innerHTML = renderOrderTable(curSeckillOrders, false);
+}
+
+function renderOrderTable(list, normal) {
+  if (!list.length) return '<div class="empty">暂无订单</div>';
+  const head = normal
+    ? '<tr><th>订单号</th><th>金额</th><th>状态</th><th>下单时间</th><th>支付时间</th><th>操作</th></tr>'
+    : '<tr><th>订单号</th><th>秒杀价</th><th>状态</th><th>下单时间</th><th>支付时间</th><th>操作</th></tr>';
+  const rows = list.map(o => {
+    const canAct = o.status === 0;
+    const payFn = normal ? 'payOrder' : 'paySeckillOrder';
+    const cancelFn = normal ? 'cancelOrder' : 'cancelSeckillOrder';
+    return '<tr>'
+      + '<td>' + esc(o.orderNo) + '</td>'
+      + '<td>¥' + fmtPrice(normal ? o.totalAmount : o.seckillPrice) + '</td>'
+      + '<td>' + (ORDER_STATUS[o.status] || o.status) + '</td>'
+      + '<td>' + fmtTime(o.createTime) + '</td>'
+      + '<td>' + (o.payTime ? fmtTime(o.payTime) : '—') + '</td>'
+      + '<td>' + (canAct
+          ? '<button class="btn sm primary" onclick="' + payFn + '(\'' + esc(o.orderNo) + '\')">支付</button> '
+            + '<button class="btn sm" onclick="' + cancelFn + '(\'' + esc(o.orderNo) + '\')">取消</button>'
+          : '') + '</td>'
+      + '</tr>';
+  }).join('');
+  return '<table class="tbl"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+}
+
+async function payOrder(orderNo) {
+  if (!confirm('确认支付订单 ' + orderNo + ' ？')) return;
+  try {
+    await request('/api/order/' + orderNo + '/pay', { method: 'POST', token: getToken() });
+    toast('支付成功');
+  } catch (e) { toast(e.message, false); }
+  loadOrders();
+}
+async function cancelOrder(orderNo) {
+  if (!confirm('确认取消订单 ' + orderNo + ' ？')) return;
+  try {
+    await request('/api/order/' + orderNo + '/cancel', { method: 'POST', token: getToken() });
+    toast('订单已取消');
+  } catch (e) { toast(e.message, false); }
+  loadOrders();
+}
+async function paySeckillOrder(orderNo) {
+  if (!confirm('确认支付秒杀订单 ' + orderNo + ' ？')) return;
+  try {
+    await request('/api/order/seckill/' + orderNo + '/pay', { method: 'POST', token: getToken() });
+    toast('支付成功');
+  } catch (e) { toast(e.message, false); }
+  loadOrders();
+}
+async function cancelSeckillOrder(orderNo) {
+  if (!confirm('确认取消秒杀订单 ' + orderNo + ' ？')) return;
+  try {
+    await request('/api/order/seckill/' + orderNo + '/cancel', { method: 'POST', token: getToken() });
+    toast('订单已取消');
+  } catch (e) { toast(e.message, false); }
+  loadOrders();
+}
+
+/* ============ 账户 ============ */
+function renderAccount() {
+  const box = document.getElementById('accountBox');
+  const u = getUser();
+  if (!getToken() || !u) {
+    box.innerHTML = '<div class="two-col">'
+      + '<div class="panel"><h3>登录</h3><form onsubmit="doLogin(event)">'
+      + '<div class="row"><input id="loginUsername" placeholder="用户名" required><input id="loginPassword" type="password" placeholder="密码" required></div>'
+      + '<button type="submit" class="btn primary">登录</button></form></div>'
+      + '<div class="panel"><h3>注册</h3><form onsubmit="doRegister(event)">'
+      + '<div class="row"><input id="regUsername" placeholder="用户名" required><input id="regPassword" type="password" placeholder="密码" required></div>'
+      + '<div class="row"><input id="regNickname" placeholder="昵称" required><input id="regPhone" placeholder="手机号（可选）"></div>'
+      + '<button type="submit" class="btn">注册</button></form></div>'
+      + '</div>';
+    return;
+  }
+  box.innerHTML =
+    '<div class="panel">'
+    + '<h3>当前用户</h3>'
+    + '<p>用户名：' + esc(u.username) + '　昵称：' + esc(u.nickname) + '</p>'
+    + '<p>手机号：' + (esc(u.phone) || '未填写') + '　角色：' + (ROLE_TEXT[u.role] || u.role) + '</p>'
+    + '<p>注册时间：' + fmtTime(u.createTime) + '</p>'
+    + '<div class="mt10"><button class="btn" onclick="logout()">退出登录</button></div>'
+    + '</div>'
+    + (u.role === 0
+      ? '<div class="panel"><h3>申请成为商家</h3>'
+        + '<textarea id="applyReason" rows="3" placeholder="请填写申请理由"></textarea>'
+        + '<div class="mt10"><button class="btn primary" onclick="applyMerchant()">提交申请</button></div>'
+        + '<div id="applyStatus" class="mt10"></div></div>'
+      : '<div class="panel"><h3>商家申请</h3><p>' + (u.role === 1 ? '您已是商家角色。' : u.role === 2 ? '管理员无需申请商家。' : '—') + '</p></div>');
+  if (u.role === 0) loadApplyStatus();
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  if (!username || !password) { toast('请填写用户名和密码', false); return; }
+  try {
+    const data = await request('/api/user/login', { method: 'POST', body: { username, password } });
+    localStorage.setItem('mall_token', data.token);
+    localStorage.setItem('mall_user', JSON.stringify(data.user));
+    toast('登录成功，欢迎 ' + (data.user.nickname || data.user.username));
+    rebuild();
+    switchTab('home');
+  } catch (e2) { toast(e2.message, false); }
+}
+
+async function doRegister(e) {
+  e.preventDefault();
+  const body = {
+    username: document.getElementById('regUsername').value.trim(),
+    password: document.getElementById('regPassword').value,
+    nickname: document.getElementById('regNickname').value.trim(),
+    phone: document.getElementById('regPhone').value.trim() || undefined
+  };
+  if (!body.username || !body.password || !body.nickname) { toast('请填写用户名、密码和昵称', false); return; }
+  try {
+    await request('/api/user/register', { method: 'POST', body });
+    toast('注册成功，请登录');
+    const lu = document.getElementById('loginUsername');
+    if (lu) lu.value = body.username;
+  } catch (e2) { toast(e2.message, false); }
+}
+
+async function applyMerchant() {
+  const reason = document.getElementById('applyReason').value.trim();
+  if (!reason) { toast('请填写申请理由', false); return; }
+  try {
+    await request('/api/user/apply-merchant', { method: 'POST', body: { reason }, token: getToken() });
+    toast('申请已提交，等待管理员审核');
+    loadApplyStatus();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadApplyStatus() {
+  const box = document.getElementById('applyStatus');
+  if (!box) return;
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    const a = await request('/api/user/apply-merchant', { token: getToken() });
+    box.innerHTML = a
+      ? '<p>最近申请：<b>' + (APPLY_STATUS[a.status] || a.status) + '</b>　申请时间：' + fmtTime(a.applyTime)
+        + (a.reviewTime ? '　审核时间：' + fmtTime(a.reviewTime) : '')
+        + (a.reviewRemark ? '　审核备注：' + esc(a.reviewRemark) : '') + '</p>'
+      : '<p>暂无申请记录</p>';
+  } catch (e) {
+    box.innerHTML = '<p class="error">获取申请状态失败：' + esc(e.message) + '</p>';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('mall_token');
+  localStorage.removeItem('mall_user');
+  rebuild();
+  switchTab('home');
+  toast('已退出登录');
+}
+
+/* ============ 商家中心 ============ */
+async function loadMerchantPage() {
+  const u = getUser();
+  if (!u || u.role !== 1) {
+    document.getElementById('merchantBox').innerHTML = '<div class="empty">仅商家角色可访问商家中心</div>';
+    return;
+  }
+  try {
+    const goods = await request('/api/merchant/goods', { token: getToken() });
+    curMerchantGoods = goods || [];
+    renderMerchantGoods();
+    const sek = await request('/api/merchant/seckill-goods', { token: getToken() });
+    curMerchantSeckill = sek || [];
+    renderMerchantSeckill();
+  } catch (e) { toast(e.message, false); }
+}
+
+function renderMerchantGoods() {
+  const box = document.getElementById('merchantGoodsList');
+  if (!curMerchantGoods.length) { box.innerHTML = '<div class="empty">还没有商品，先新增一个吧</div>'; return; }
+  box.innerHTML = '<table class="tbl"><thead><tr><th>名称</th><th>价格</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+    + curMerchantGoods.map((g, i) => {
+      let toggle = '';
+      if (g.status === 1) toggle = '<button class="btn sm warning" onclick="toggleGoodsStatus(' + i + ',2)">下架</button>';
+      else if (g.status === 2) toggle = '<button class="btn sm" onclick="toggleGoodsStatus(' + i + ',1)">上架</button>';
+      return '<tr>'
+        + '<td>' + esc(g.name) + '</td>'
+        + '<td>¥' + fmtPrice(g.price) + '</td>'
+        + '<td>' + g.stock + '</td>'
+        + '<td>' + (GOODS_STATUS[g.status] || g.status) + '</td>'
+        + '<td><button class="btn sm" onclick="editGoods(' + i + ')">编辑</button> ' + toggle + '</td>'
+        + '</tr>';
+    }).join('')
+    + '</tbody></table>';
+}
+
+function renderMerchantSeckill() {
+  const box = document.getElementById('merchantSeckillList');
+  if (!curMerchantSeckill.length) { box.innerHTML = '<div class="empty">暂无秒杀申请</div>'; return; }
+  box.innerHTML = '<table class="tbl"><thead><tr><th>名称</th><th>秒杀价</th><th>秒杀库存</th><th>开始时间</th><th>结束时间</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+    + curMerchantSeckill.map((s, i) =>
+      '<tr>'
+      + '<td>' + esc(s.name) + '</td>'
+      + '<td>¥' + fmtPrice(s.seckillPrice) + '</td>'
+      + '<td>' + s.seckillStock + '</td>'
+      + '<td>' + fmtTime(s.startTime) + '</td>'
+      + '<td>' + fmtTime(s.endTime) + '</td>'
+      + '<td>' + (SECKILL_STATUS[s.status] || s.status) + '</td>'
+      + '<td>' + (s.status === 2 ? '<button class="btn sm" onclick="editSeckill(' + i + ')">重新申请</button>' : '') + '</td>'
+      + '</tr>'
+    ).join('')
+    + '</tbody></table>';
+}
+
+function editGoods(i) {
+  const g = curMerchantGoods[i];
+  if (!g) return;
+  document.getElementById('goodsFormId').value = g.id;
+  document.getElementById('gName').value = g.name;
+  document.getElementById('gDesc').value = g.description || '';
+  document.getElementById('gPrice').value = g.price;
+  document.getElementById('gStock').value = g.stock;
+  document.getElementById('gImage').value = g.imageUrl || '';
+  document.getElementById('goodsFormBtn').textContent = '保存修改';
+  document.getElementById('merchantGoodsFormTitle').textContent = '① 编辑商品 #' + g.id;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function resetGoodsForm() {
+  document.getElementById('goodsForm').reset();
+  document.getElementById('goodsFormId').value = '';
+  document.getElementById('goodsFormBtn').textContent = '新增商品';
+  document.getElementById('merchantGoodsFormTitle').textContent = '① 新增商品';
+}
+
+async function submitGoods(e) {
+  e.preventDefault();
+  const id = document.getElementById('goodsFormId').value;
+  const body = {
+    name: document.getElementById('gName').value.trim(),
+    description: document.getElementById('gDesc').value.trim(),
+    price: Number(document.getElementById('gPrice').value),
+    stock: Number(document.getElementById('gStock').value),
+    imageUrl: document.getElementById('gImage').value.trim() || undefined
+  };
+  if (!body.name || isNaN(body.price) || isNaN(body.stock)) { toast('请填写完整信息', false); return; }
+  try {
+    if (id) {
+      await request('/api/merchant/goods/' + id, { method: 'PUT', body, token: getToken() });
+      toast('商品已更新');
+    } else {
+      await request('/api/merchant/goods', { method: 'POST', body, token: getToken() });
+      toast('商品已提交');
     }
+    resetGoodsForm();
+    loadMerchantPage();
+  } catch (e2) { toast(e2.message, false); }
+}
 
-    async function seckill(goodsId) {
-      const userId = document.getElementById('userId').value;
-      if (!userId) {
-        showMsg('请先填写用户ID', false);
-        return;
-      }
-      try {
-        const res = await fetch(API + '/api/seckill/' + goodsId + '?userId=' + userId, { method: 'POST' });
-        const result = await res.json();
-        if (result.code === 200) {
-          showMsg('抢购成功！订单ID：' + result.data, true);
-        } else {
-          showMsg('抢购失败：' + result.msg, false);
-        }
-        loadGoods();
-      } catch (e) {
-        showMsg('请求异常：' + e.message, false);
-      }
+async function toggleGoodsStatus(i, status) {
+  const g = curMerchantGoods[i];
+  if (!g) return;
+  try {
+    await request('/api/merchant/goods/' + g.id + '/status?status=' + status, { method: 'PUT', token: getToken() });
+    toast(status === 1 ? '已上架' : '已下架');
+    loadMerchantPage();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function submitSeckillApply(e) {
+  e.preventDefault();
+  const id = document.getElementById('skFormId').value;
+  const name = document.getElementById('skName').value.trim();
+  const price = Number(document.getElementById('skPrice').value);
+  const stock = Number(document.getElementById('skStock').value);
+  let start = document.getElementById('skStart').value;
+  let end = document.getElementById('skEnd').value;
+  if (!name || !start || !end || isNaN(price) || isNaN(stock)) { toast('请填写完整信息', false); return; }
+  if (start.length === 16) start += ':00';
+  if (end.length === 16) end += ':00';
+  const body = { name, seckillPrice: price, seckillStock: stock, startTime: start, endTime: end };
+  try {
+    if (id) {
+      await request('/api/merchant/seckill-goods/' + id, { method: 'PUT', body, token: getToken() });
+      toast('秒杀商品已更新并重新提交审核');
+    } else {
+      await request('/api/merchant/seckill-goods', { method: 'POST', body, token: getToken() });
+      toast('秒杀申请已提交，等待审核');
     }
+    resetSeckillForm();
+    loadMerchantPage();
+  } catch (e2) { toast(e2.message, false); }
+}
 
-    document.getElementById('goodsBody').addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-id]');
-      if (btn) seckill(btn.dataset.id);
-    });
-    document.getElementById('refreshBtn').addEventListener('click', loadGoods);
+function resetSeckillForm() {
+  document.getElementById('seckillApplyForm').reset();
+  document.getElementById('skFormId').value = '';
+}
 
-    loadGoods();
-  </script>
+function editSeckill(i) {
+  const s = curMerchantSeckill[i];
+  if (!s) return;
+  document.getElementById('skFormId').value = s.id;
+  document.getElementById('skName').value = s.name || '';
+  document.getElementById('skPrice').value = s.seckillPrice;
+  document.getElementById('skStock').value = s.seckillStock;
+  document.getElementById('skStart').value = String(s.startTime || '').slice(0, 16);
+  document.getElementById('skEnd').value = String(s.endTime || '').slice(0, 16);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ============ 管理后台 ============ */
+function renderAdmin() {
+  loadAdminApplies();
+  loadAdminGoods();
+  loadAdminSeckill();
+  loadAdminOrders();
+}
+
+async function loadAdminApplies() {
+  const box = document.getElementById('adminApplies');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    curAdminApplies = await request('/api/admin/merchant-applies', { token: getAdminToken() }) || [];
+    if (!curAdminApplies.length) { box.innerHTML = '<div class="empty">暂无商家申请</div>'; return; }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>用户名</th><th>昵称</th><th>理由</th><th>申请时间</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+      + curAdminApplies.map((a, i) =>
+        '<tr>'
+        + '<td>' + esc(a.username) + '</td>'
+        + '<td>' + esc(a.nickname) + '</td>'
+        + '<td>' + esc(a.reason) + '</td>'
+        + '<td>' + fmtTime(a.applyTime) + '</td>'
+        + '<td>' + (APPLY_STATUS[a.status] || a.status) + '</td>'
+        + '<td>' + (a.status === 0
+            ? '<button class="btn sm primary" onclick="reviewApply(' + i + ',\'approve\')">通过</button> '
+              + '<button class="btn sm danger" onclick="reviewApply(' + i + ',\'reject\')">拒绝</button>'
+            : (a.reviewRemark ? '备注：' + esc(a.reviewRemark) : '')) + '</td>'
+        + '</tr>'
+      ).join('')
+      + '</tbody></table>';
+  } catch (e) { box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>'; }
+}
+
+async function reviewApply(i, action) {
+  const a = curAdminApplies[i];
+  if (!a) return;
+  const remark = prompt(action === 'approve' ? '通过备注（可留空）' : '拒绝原因（可留空）', '') || '';
+  try {
+    const q = remark ? '?remark=' + encodeURIComponent(remark) : '';
+    await request('/api/admin/merchant-applies/' + a.id + '/' + action + q, { method: 'POST', token: getAdminToken() });
+    toast(action === 'approve' ? '已通过该申请' : '已拒绝该申请');
+    loadAdminApplies();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadAdminGoods() {
+  const box = document.getElementById('adminGoodsList');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    curAdminGoods = await request('/api/admin/goods', { token: getAdminToken() }) || [];
+    if (!curAdminGoods.length) { box.innerHTML = '<div class="empty">暂无商品</div>'; return; }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>ID</th><th>名称</th><th>商家ID</th><th>价格</th><th>库存</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+      + curAdminGoods.map((g, i) =>
+        '<tr>'
+        + '<td>' + g.id + '</td>'
+        + '<td>' + esc(g.name) + '</td>'
+        + '<td>' + (g.merchantId !== undefined ? g.merchantId : '—') + '</td>'
+        + '<td>¥' + fmtPrice(g.price) + '</td>'
+        + '<td>' + g.stock + '</td>'
+        + '<td>' + (GOODS_STATUS[g.status] || g.status) + '</td>'
+        + '<td>' + (g.status === 0
+            ? '<button class="btn sm primary" onclick="reviewGoods(' + i + ',\'approve\')">通过</button> '
+              + '<button class="btn sm danger" onclick="reviewGoods(' + i + ',\'reject\')">拒绝</button>'
+            : '') + '</td>'
+        + '</tr>'
+      ).join('')
+      + '</tbody></table>';
+  } catch (e) { box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>'; }
+}
+
+async function reviewGoods(i, action) {
+  const g = curAdminGoods[i];
+  if (!g) return;
+  try {
+    await request('/api/admin/goods/' + g.id + '/' + action, { method: 'POST', token: getAdminToken() });
+    toast(action === 'approve' ? '商品已通过' : '商品已拒绝');
+    loadAdminGoods();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadAdminSeckill() {
+  const box = document.getElementById('adminSeckillList');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    curAdminSeckill = await request('/api/admin/seckill-goods', { token: getAdminToken() }) || [];
+    if (!curAdminSeckill.length) { box.innerHTML = '<div class="empty">暂无秒杀商品</div>'; return; }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>名称</th><th>秒杀价</th><th>秒杀库存</th><th>起止时间</th><th>状态</th><th>操作</th></tr></thead><tbody>'
+      + curAdminSeckill.map((s, i) =>
+        '<tr>'
+        + '<td>' + esc(s.name) + '</td>'
+        + '<td>¥' + fmtPrice(s.seckillPrice) + '</td>'
+        + '<td>' + s.seckillStock + '</td>'
+        + '<td>' + fmtTime(s.startTime) + ' ~ ' + fmtTime(s.endTime) + '</td>'
+        + '<td>' + (SECKILL_STATUS[s.status] || s.status) + '</td>'
+        + '<td>' + (s.status === 0
+            ? '<button class="btn sm primary" onclick="reviewSeckill(' + i + ',\'approve\')">通过</button> '
+              + '<button class="btn sm danger" onclick="reviewSeckill(' + i + ',\'reject\')">拒绝</button>'
+            : '') + '</td>'
+        + '</tr>'
+      ).join('')
+      + '</tbody></table>';
+  } catch (e) { box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>'; }
+}
+
+async function reviewSeckill(i, action) {
+  const s = curAdminSeckill[i];
+  if (!s) return;
+  try {
+    await request('/api/admin/seckill-goods/' + s.id + '/' + action, { method: 'POST', token: getAdminToken() });
+    toast(action === 'approve' ? '秒杀商品已通过' : '秒杀商品已拒绝');
+    loadAdminSeckill();
+  } catch (e) { toast(e.message, false); }
+}
+
+async function loadAdminOrders() {
+  const box = document.getElementById('adminOrders');
+  const sBox = document.getElementById('adminSeckillOrders');
+  box.innerHTML = '<div class="loading">加载中…</div>';
+  sBox.innerHTML = '<div class="loading">加载中…</div>';
+  try {
+    const [orders, sek] = await Promise.all([
+      request('/api/admin/orders', { token: getAdminToken() }),
+      request('/api/admin/seckill-orders', { token: getAdminToken() })
+    ]);
+    box.innerHTML = renderAdminOrderTable(orders || [], true);
+    sBox.innerHTML = renderAdminOrderTable(sek || [], false);
+  } catch (e) {
+    box.innerHTML = '<div class="error">加载失败：' + esc(e.message) + '</div>';
+    sBox.innerHTML = '';
+  }
+}
+
+function renderAdminOrderTable(list, normal) {
+  if (!list.length) return '<div class="empty">暂无订单</div>';
+  const head = normal
+    ? '<tr><th>订单号</th><th>用户ID</th><th>金额</th><th>状态</th><th>下单时间</th><th>支付时间</th></tr>'
+    : '<tr><th>订单号</th><th>用户ID</th><th>秒杀价</th><th>状态</th><th>下单时间</th><th>支付时间</th></tr>';
+  const rows = list.map(o =>
+    '<tr>'
+    + '<td>' + esc(o.orderNo) + '</td>'
+    + '<td>' + o.userId + '</td>'
+    + '<td>¥' + fmtPrice(normal ? o.totalAmount : o.seckillPrice) + '</td>'
+    + '<td>' + (ORDER_STATUS[o.status] || o.status) + '</td>'
+    + '<td>' + fmtTime(o.createTime) + '</td>'
+    + '<td>' + (o.payTime ? fmtTime(o.payTime) : '—') + '</td>'
+    + '</tr>'
+  ).join('');
+  return '<table class="tbl"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table>';
+}
+
+async function resetStock() {
+  if (!confirm('确认重置 Redis 中的商品与秒杀库存？')) return;
+  try {
+    await request('/api/admin/stock/reset', { method: 'POST', token: getAdminToken() });
+    toast('库存已重置');
+  } catch (e) { toast(e.message, false); }
+}
+
+/* ============ 初始化 ============ */
+rebuild();
+switchTab('home');
+</script>
+
 </body>
 </html>

@@ -54,48 +54,43 @@ mvn spring-boot:run
 > 注意：后端当前配置端口是 **7099**（`application.yml` 里 `server.port`），下面示例都用 7099。如果你改回 8080，替换一下即可。
 
 ### 2. 重置数据（重要，每次压测前都做一次）
-把库存设成一个好算的数，比如商品1（iPhone）库存 = **100**，然后清空订单。
+把某个秒杀商品的库存设成一个好算的数，比如秒杀商品1 = **100**，然后清空秒杀订单。
 执行 `docs/check-data.sql` 里「【0】压测前重置」那一段（Navicat/DBeaver 或命令行都行）。
 
-### 3. 确认接口
-```
-POST http://localhost:7099/api/seckill/1?userId=1001
-```
-- 路径参数 `1` = 商品ID
-- Query 参数 `userId` = 用户ID（压测时必须每个请求不同，见第四节）
+> P2 采用 Redis 预扣库存，重置 DB 库存后还要重置 Redis 库存，二选一：
+> - 重启后端（启动时自动把 DB 库存预载到 Redis）；或
+> - 调用管理接口 `POST /api/admin/stock/reset`（需管理员 token）。
 
-先单发一次确认返回 `{"code":200,...,"data":1}`，再把数据重置回去。
+### 3. 确认接口
+秒杀下单需登录，用户身份从 token 解析（不再传 userId）：
+```
+POST http://localhost:7099/api/seckill/1
+Authorization: Bearer <token>
+```
+- 路径参数 `1` = 秒杀商品ID（seckill_goods.id）
+- 先用 `POST /api/user/login` 登录拿 token，再带上 header 单发一次，
+  确认返回 `{"code":200,...,"data":"SO...订单号"}`，然后把数据重置回去。
 
 ---
 
-## 四、关键：userId 必须动态化（用 Lua 脚本）
+## 四、关键：每个请求要用不同用户的 token（用 Lua 脚本）
 
-如果所有请求都用同一个 `userId=1001`，那只有第一个能成功，其余全被「重复抢购」拦截，**根本测不出高并发**。所以每个请求的用户ID必须不同。
+如果所有请求都用同一个用户的 token，那只有第一个能成功，其余全被「重复抢购」拦截，**根本测不出高并发**。所以每个请求必须携带不同用户的 token。
 
-wrk 用 `-s` 加载 Lua 脚本，在 `request()` 里给每个请求动态加参数。先新建 `post.lua`：
+`docs/post.lua` 已实现：从 `tokens.txt` 读取一批 token（每行一个），压测时循环使用。准备 token 的方式：
 
-```lua
--- post.lua：对 /api/seckill/1 发 POST，每个请求 userId 随机
--- 用全局计数器 + 线程 id 拼出独一无二的 userId
-counter = 0
+1. 批量注册 N 个测试用户并登录，把登录返回的 `data.token` 逐行写入 `tokens.txt`；
+2. 或在 Redis 里直接批量写入 token→userId 映射（token 是 UUID 字符串，value 是 userId）。
 
-request = function()
-    counter = counter + 1
-    local uid = os.time() * 1000000 + counter
-    local path = "/api/seckill/1?userId=" .. uid
-    return wrk.format("POST", path)
-end
-```
-
-然后：IP随主机IP变化
+然后运行（把 IP 换成你的主机 IP）：
 
 ```bash
 wrk -t10 -c200 -d30s --latency -s post.lua http://172.17.48.1:7099
 ```
 
 说明：
-- `counter` 是 Lua 全局变量，10 个线程会共享累加（wrk 里全局变量跨线程共享），配合 `os.time()` 保证 userId 基本不重复。
-- `wrk.format(method, path)` 生成请求；需要自定义 header 时传第三、四个参数。
+- `post.lua` 用 `io.lines("tokens.txt")` 读取 token 列表，在 `request()` 里循环取用并加到 `Authorization: Bearer <token>` 头。
+- `wrk.format(method, path, headers)` 的第三个参数是自定义 header 表。
 
 ---
 
@@ -154,15 +149,15 @@ Transfer/sec:    273.48KB
 
 ### 校验 1：库存不为负（超卖）
 ```sql
-SELECT id, name, stock FROM seckill_goods WHERE stock < 0;
+SELECT id, name, seckill_stock FROM seckill_goods WHERE seckill_stock < 0;
 ```
 ✅ 期望：**空**。只要出现任何一行，就是超卖了。
 
 ### 校验 2：订单数 + 剩余库存 = 初始库存（不多卖不少卖）
 ```sql
 SELECT
-  (SELECT COUNT(*) FROM seckill_order WHERE goods_id = 1)
-  + (SELECT stock FROM seckill_goods WHERE id = 1) AS total;
+  (SELECT COUNT(*) FROM seckill_order WHERE seckill_goods_id = 1)
+  + (SELECT seckill_stock FROM seckill_goods WHERE id = 1) AS total;
 ```
 ✅ 期望：**= 100**（以初始库存 100 为例）。
 - 结果 > 100：多卖/超卖，扣库存和建订单没对齐。
@@ -170,18 +165,18 @@ SELECT
 
 ### 校验 3：无重复下单
 ```sql
-SELECT goods_id, user_id, COUNT(*) AS cnt
+SELECT seckill_goods_id, user_id, COUNT(*) AS cnt
 FROM seckill_order
-GROUP BY goods_id, user_id
+GROUP BY seckill_goods_id, user_id
 HAVING cnt > 1;
 ```
 ✅ 期望：**空**。有返回行就是有人重复下单。
 
 ### 校验 4：卖出数量分布
 ```sql
-SELECT goods_id, COUNT(*) AS sold_count FROM seckill_order GROUP BY goods_id;
+SELECT seckill_goods_id, COUNT(*) AS sold_count FROM seckill_order GROUP BY seckill_goods_id;
 ```
-✅ 期望：商品1 卖出数 = 100（和校验 2 对应）。
+✅ 期望：秒杀商品1 卖出数 = 100（和校验 2 对应）。
 
 ### 一句话总结
 > **库存不为负** + **订单数 = 初始库存 − 剩余库存** + **无重复下单** = 数据正确。
@@ -190,13 +185,16 @@ SELECT goods_id, COUNT(*) AS sold_count FROM seckill_order GROUP BY goods_id;
 
 ## 八、预期结果 vs 你可能遇到的问题
 
-### 正常预期（当前最简版 DB 实现）
+### 正常预期（P2：Redis 预扣库存 + Lua 实现）
 并发 500、库存 100 → 100 成功、400「库存不足」失败；数据库校验 1/2/3 全通过。
+秒杀请求先在 Redis 层用 Lua 脚本原子完成「判库存 → 判重复 → 扣库存 → 记用户」，
+只有抢到库存的少数请求（约等于库存数）才会落到数据库建订单，DB 压力显著下降。
 
 ### 你大概率会看到的「问题」——这是好事
-**如果 userId 生成有碰撞**（比如只用计数器且跨线程没处理好），会看到部分请求返回 **500 错误**，日志里有 `DuplicateKeyException`。原因是：当前最简版的「查重 → 插入」两步之间存在并发竞态，两个相同 userId 同时通过查重，最终靠唯一索引兜底时抛了异常。
-
-这**不是坏消息**，恰恰是高并发秒杀要解决的经典问题——正好引出下一步（P2）的优化点：用 Redis + Lua 预扣库存、对重复下单做幂等控制等。
+正常情况下不会再看到 `DuplicateKeyException`（重复下单已在 Redis Lua 层被幂等拦截）。
+若 Redis 被重启导致已购用户集合丢失，极少数重复请求会穿透到数据库，最终靠 `(seckill_goods_id, user_id)`
+唯一索引兜底抛出 `DuplicateKeyException`，此时后端会回滚 Redis 库存并返回「重复抢购」——这正是
+「Redis 预扣 + DB 唯一索引兜底」双层防重复的设计。
 
 ### wrk 相比 Apifox / JMeter 的优劣
 - **优势**：极轻量、QPS 上限高、命令式、适合快速看吞吐与延迟。

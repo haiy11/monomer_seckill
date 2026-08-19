@@ -1,20 +1,29 @@
 -- post.lua：wrk 压测秒杀接口用的 Lua 脚本
--- 用法：
+--
+-- 用法（先准备 tokens.txt，每行一个登录 token）：
 --   wrk -t10 -c200 -d30s --latency -s post.lua http://localhost:7099
 --
--- 作用：每个请求动态生成不同的 userId，避免全部被「重复抢购」拦截。
+-- 说明：
+--   P2 秒杀接口 POST /api/seckill/{seckillGoodsId} 需要登录，
+--   用户身份从 Authorization: Bearer <token> 解析，不再传 userId。
+--   每个请求必须使用不同用户的 token，否则全部被「重复抢购」拦截。
 
--- 注意事项：
---   userId 必须是纯整数（后端是 Long 类型）。
---   不要用 os.time() * 大数 的写法——那会产生浮点数/科学计数法，
---   拼进 URL 后后端会报 Failed to convert value ... For input string "1.7869546000382e15"。
+-- 读取 tokens.txt（每行一个 token），压测时循环使用
+tokens = {}
+local i = 0
+for line in io.lines("tokens.txt") do
+    i = i + 1
+    tokens[i] = line
+end
+if i == 0 then
+    tokens[1] = "请替换为真实token"
+end
 
--- 全局计数器：Lua 的 number 在 wrk 里是双精度，但 5000 万以内的整数都能精确表示，
--- 压测场景下的请求数远达不到溢出边界，纯累加足够安全。
-counter = 0
+idx = 0
 
 request = function()
-    counter = counter + 1
-    local path = "/api/seckill/1?userId=" .. counter
-    return wrk.format("POST", path)
+    idx = idx % #tokens + 1
+    local token = tokens[idx]
+    local path = "/api/seckill/1"
+    return wrk.format("POST", path, { ["Authorization"] = "Bearer " .. token })
 end
