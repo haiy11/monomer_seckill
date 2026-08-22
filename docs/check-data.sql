@@ -7,27 +7,42 @@
 --  2) Navicat / DBeaver：连接 3307 后选中 monomer_seckill 库，分段执行。
 --
 -- 说明：P2 秒杀以 seckill_goods（秒杀商品）为粒度，Redis 预扣库存。
---   压测前除重置 DB 外，还需重置 Redis 库存：
---   重启后端（启动时预载），或调用 POST /api/admin/stock/reset（需管理员 token）。
+--   ⚠️ 关键：Redis 库存/已购集合是本轮的「事实来源」，SQL 只能操作 MySQL，无法直接操作 Redis。
+--   所以「重置」必须分两步：先执行下面的 DB 重置 SQL，再调用管理接口把 Redis 同步成一致状态
+--   （接口会按 DB 当前 seckill_stock 预载 Redis，并清空已购用户集合）。
 -- ============================================================
 
 -- ============================================================
 -- 【0】压测前：重置数据（每次压测前执行，保证初始状态一致）
---    把某个秒杀商品的库存设成好算的数，比如秒杀商品1 = 100，并清空秒杀订单。
+--    把秒杀商品1的库存设成好算的数（这里 = 1000），并清空秒杀订单。
+--    秒杀商品1 = 应用启动时 DataInitializer 播种的示例秒杀商品（id=1）。
 -- ============================================================
 DELETE FROM seckill_order;
-UPDATE seckill_goods SET seckill_stock = 100 WHERE id = 1;
+UPDATE seckill_goods SET seckill_stock = 1000 WHERE id = 1;
+
+-- 以上 SQL 只重置了 MySQL。还必须把 Redis 同步重置（SQL 做不到，二选一）：
+--   方式一（推荐，无需重启）：用管理员 token 调用管理接口
+--     1) 登录拿管理员 token（默认账号 admin/admin123）：
+--        curl -X POST http://localhost:7099/api/admin/login \
+--             -H "Content-Type: application/json" \
+--             -d '{"username":"admin","password":"admin123"}'
+--        （返回体里的 data.token 即管理员 token）
+--     2) 重置秒杀商品1的 Redis 库存并清空已购集合 seckill:users:1：
+--        curl -X POST http://localhost:7099/api/admin/stock/reset/1 \
+--             -H "Authorization: Bearer <管理员token>"
+--   方式二：重启后端（启动时 DataInitializer 会自动预载全部秒杀库存到 Redis）。
 
 -- ============================================================
 -- 【压测后】逐项校验（核心）
 -- ============================================================
 
--- 校验 1：秒杀库存不能为负 —— 超卖的最直接证据
--- 期望：返回空
-SELECT id, name, seckill_stock FROM seckill_goods WHERE seckill_stock < 0;
+-- 校验 1：Redis 剩余秒杀库存不能为负 —— 超卖的最直接证据（DB 层到 0 即停，不会为负）
+-- 期望：GET seckill:stock:1 返回 >= 0；更建议配合校验 2 看「订单数是否 > 初始库存」。
+-- Redis CLI 执行：GET seckill:stock:1
+-- （可选，供人工核对；DB 层库存字段本身因原子扣减不会出现负数）
 
 -- 校验 2：秒杀订单数 + 剩余秒杀库存 = 初始秒杀库存（不多卖、不少卖）
--- 以秒杀商品1初始 100 为例，期望 total = 100
+-- 以秒杀商品1初始 1000 为例，期望 total = 1000（前提：上面已把 DB 与 Redis 都重置为 1000）
 SELECT
   (SELECT COUNT(*) FROM seckill_order WHERE seckill_goods_id = 1)
   + (SELECT seckill_stock FROM seckill_goods WHERE id = 1) AS total;
@@ -66,3 +81,15 @@ LIMIT 5;
 
 -- 校验 9（可选）：核对 Redis 剩余秒杀库存与 DB 是否一致
 -- 在 Redis CLI 执行：GET seckill:stock:1，与上面 seckill_goods 表的 seckill_stock 对比，应相等。
+-- 另可核对已购集合大小：SCARD seckill:users:1，应等于校验 4 中商品1的 sold_count。
+
+-- ============================================================
+-- 【压测后】重置：把环境恢复到干净状态，方便下一轮压测
+-- （与【0】完全一致：先重置 DB，再调用管理接口重置 Redis）
+-- ============================================================
+DELETE FROM seckill_order;
+UPDATE seckill_goods SET seckill_stock = 1000 WHERE id = 1;
+
+-- 再执行一次 Redis 重置（SQL 做不到）：
+--   curl -X POST http://localhost:7099/api/admin/stock/reset/1 \
+--        -H "Authorization: Bearer <管理员token>"
