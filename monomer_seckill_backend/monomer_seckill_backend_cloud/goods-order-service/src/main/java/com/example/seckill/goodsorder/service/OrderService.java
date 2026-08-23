@@ -108,6 +108,13 @@ public class OrderService {
     }
 
     /**
+     * 全部正常订单（管理端查看）。
+     */
+    public List<MallOrder> listAllNormal() {
+        return mallOrderMapper.selectList(new LambdaQueryWrapper<MallOrder>().orderByDesc(MallOrder::getId));
+    }
+
+    /**
      * 正常订单详情（含明细）。
      */
     public OrderVO getNormalOrder(String orderNo, Long userId) {

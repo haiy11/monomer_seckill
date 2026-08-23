@@ -59,6 +59,13 @@ public class SeckillOrderService {
     }
 
     /**
+     * 全部秒杀订单（管理端查看）。
+     */
+    public List<SeckillOrder> listAllSeckillOrders() {
+        return seckillOrderMapper.selectList(new LambdaQueryWrapper<SeckillOrder>().orderByDesc(SeckillOrder::getId));
+    }
+
+    /**
      * 支付秒杀订单。
      */
     @Transactional
