@@ -1,10 +1,10 @@
 package com.example.seckill.user.controller;
 
 import com.example.seckill.common.core.Result;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.entity.MallOrder;
-import com.example.seckill.common.entity.SeckillOrder;
-import com.example.seckill.common.vo.SeckillGoodsVO;
+import com.example.seckill.user.entity.Goods;
+import com.example.seckill.user.entity.MallOrder;
+import com.example.seckill.user.entity.SeckillOrder;
+import com.example.seckill.user.vo.SeckillGoodsVO;
 import com.example.seckill.user.dto.LoginRequest;
 import com.example.seckill.user.service.AdminService;
 import com.example.seckill.user.vo.LoginVO;

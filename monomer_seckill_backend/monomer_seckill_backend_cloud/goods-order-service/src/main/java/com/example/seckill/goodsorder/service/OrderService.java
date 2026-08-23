@@ -2,18 +2,19 @@ package com.example.seckill.goodsorder.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.seckill.common.core.BizException;
-import com.example.seckill.common.core.Constants;
-import com.example.seckill.common.entity.CartItem;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.entity.MallOrder;
-import com.example.seckill.common.entity.OrderItem;
-import com.example.seckill.common.entity.SeckillOrder;
-import com.example.seckill.common.mapper.CartItemMapper;
-import com.example.seckill.common.mapper.GoodsMapper;
-import com.example.seckill.common.mapper.MallOrderMapper;
-import com.example.seckill.common.mapper.OrderItemMapper;
-import com.example.seckill.common.mapper.SeckillOrderMapper;
-import com.example.seckill.common.service.StockService;
+import com.example.seckill.goodsorder.client.SeckillStockClient;
+import com.example.seckill.goodsorder.constant.GoodsOrderConstants;
+import com.example.seckill.goodsorder.entity.CartItem;
+import com.example.seckill.goodsorder.entity.Goods;
+import com.example.seckill.goodsorder.entity.MallOrder;
+import com.example.seckill.goodsorder.entity.OrderItem;
+import com.example.seckill.goodsorder.entity.SeckillOrder;
+import com.example.seckill.goodsorder.mapper.CartItemMapper;
+import com.example.seckill.goodsorder.mapper.GoodsMapper;
+import com.example.seckill.goodsorder.mapper.MallOrderMapper;
+import com.example.seckill.goodsorder.mapper.OrderItemMapper;
+import com.example.seckill.goodsorder.mapper.SeckillGoodsMapper;
+import com.example.seckill.goodsorder.mapper.SeckillOrderMapper;
 import com.example.seckill.goodsorder.vo.OrderVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +26,10 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 订单服务：正常商品结算、支付、取消，以及秒杀订单的创建与生命周期。
+ * 订单服务：正常商品结算、支付、取消，以及秒杀订单的落库与生命周期。
+ *
+ * <p>秒杀订单的 Redis 预扣库存由 seckill-service 负责；本服务负责秒杀订单的
+ * 数据库扣减 + 落库，并在取消/超时关闭时回补 DB 库存 + 反向调用 seckill-service 回滚 Redis。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -38,17 +42,20 @@ public class OrderService {
     private final SeckillOrderMapper seckillOrderMapper;
     private final CartItemMapper cartItemMapper;
     private final GoodsMapper goodsMapper;
-    private final StockService stockService;
+    private final SeckillGoodsMapper seckillGoodsMapper;
+    private final SeckillStockClient seckillStockClient;
 
     public OrderService(MallOrderMapper mallOrderMapper, OrderItemMapper orderItemMapper,
                         SeckillOrderMapper seckillOrderMapper, CartItemMapper cartItemMapper,
-                        GoodsMapper goodsMapper, StockService stockService) {
+                        GoodsMapper goodsMapper, SeckillGoodsMapper seckillGoodsMapper,
+                        SeckillStockClient seckillStockClient) {
         this.mallOrderMapper = mallOrderMapper;
         this.orderItemMapper = orderItemMapper;
         this.seckillOrderMapper = seckillOrderMapper;
         this.cartItemMapper = cartItemMapper;
         this.goodsMapper = goodsMapper;
-        this.stockService = stockService;
+        this.seckillGoodsMapper = seckillGoodsMapper;
+        this.seckillStockClient = seckillStockClient;
     }
 
     // ==================== 正常商品下单 ====================
@@ -68,7 +75,8 @@ public class OrderService {
         List<OrderItem> orderItems = new ArrayList<>();
         for (CartItem ci : cartItems) {
             Goods goods = goodsMapper.selectById(ci.getGoodsId());
-            if (goods == null || goods.getStatus() == null || goods.getStatus() != Constants.GOODS_STATUS_ON) {
+            if (goods == null || goods.getStatus() == null
+                    || goods.getStatus() != GoodsOrderConstants.GOODS_STATUS_ON) {
                 throw new BizException("商品已下架：" + (goods != null ? goods.getName() : ci.getGoodsId()));
             }
             int quantity = ci.getQuantity() == null ? 1 : ci.getQuantity();
@@ -95,7 +103,7 @@ public class OrderService {
         order.setOrderNo(generateOrderNo("NO"));
         order.setUserId(userId);
         order.setTotalAmount(total);
-        order.setStatus(Constants.ORDER_STATUS_UNPAID);
+        order.setStatus(GoodsOrderConstants.ORDER_STATUS_UNPAID);
         mallOrderMapper.insert(order);
         for (OrderItem oi : orderItems) {
             oi.setOrderId(order.getId());
@@ -177,11 +185,11 @@ public class OrderService {
     // ==================== 秒杀订单 ====================
 
     /**
-     * 创建秒杀订单（Redis 预扣成功之后调用）：扣减 DB 秒杀库存 + 插订单。
+     * 创建秒杀订单（Redis 预扣成功之后调用）：DB 扣减秒杀库存 + 插订单。
      */
     @Transactional
     public SeckillOrder createSeckillOrder(Long seckillGoodsId, Long userId, BigDecimal seckillPrice) {
-        int rows = stockService.deductDb(seckillGoodsId);
+        int rows = seckillGoodsMapper.deductStock(seckillGoodsId);
         if (rows == 0) {
             throw new BizException("手慢了，库存不足");
         }
@@ -190,7 +198,7 @@ public class OrderService {
         order.setUserId(userId);
         order.setSeckillGoodsId(seckillGoodsId);
         order.setSeckillPrice(seckillPrice);
-        order.setStatus(Constants.ORDER_STATUS_UNPAID);
+        order.setStatus(GoodsOrderConstants.ORDER_STATUS_UNPAID);
         seckillOrderMapper.insert(order);
         return order;
     }
@@ -216,7 +224,7 @@ public class OrderService {
     }
 
     /**
-     * 取消秒杀订单（回补秒杀库存）。
+     * 取消秒杀订单：回补 DB 库存 + 反向调用 seckill-service 回滚 Redis。
      */
     @Transactional
     public void cancelSeckill(String orderNo, Long userId) {
@@ -230,7 +238,7 @@ public class OrderService {
         if (rows == 0) {
             throw new BizException("订单状态不允许取消");
         }
-        stockService.rollback(order.getSeckillGoodsId(), userId);
+        restoreSeckillStock(order.getSeckillGoodsId(), order.getUserId());
     }
 
     // ==================== 管理端 ====================
@@ -247,13 +255,13 @@ public class OrderService {
 
     public List<MallOrder> listNormalTimeoutUnpaid(LocalDateTime deadline) {
         return mallOrderMapper.selectList(new LambdaQueryWrapper<MallOrder>()
-                .eq(MallOrder::getStatus, Constants.ORDER_STATUS_UNPAID)
+                .eq(MallOrder::getStatus, GoodsOrderConstants.ORDER_STATUS_UNPAID)
                 .lt(MallOrder::getCreateTime, deadline));
     }
 
     public List<SeckillOrder> listSeckillTimeoutUnpaid(LocalDateTime deadline) {
         return seckillOrderMapper.selectList(new LambdaQueryWrapper<SeckillOrder>()
-                .eq(SeckillOrder::getStatus, Constants.ORDER_STATUS_UNPAID)
+                .eq(SeckillOrder::getStatus, GoodsOrderConstants.ORDER_STATUS_UNPAID)
                 .lt(SeckillOrder::getCreateTime, deadline));
     }
 
@@ -280,7 +288,15 @@ public class OrderService {
         if (rows == 0) {
             return;
         }
-        stockService.rollback(order.getSeckillGoodsId(), order.getUserId());
+        restoreSeckillStock(order.getSeckillGoodsId(), order.getUserId());
+    }
+
+    /**
+     * 回补 DB 秒杀库存 + 反向调用 seckill-service 回滚 Redis 预扣库存。
+     */
+    private void restoreSeckillStock(Long seckillGoodsId, Long userId) {
+        seckillGoodsMapper.restoreStock(seckillGoodsId);
+        seckillStockClient.rollbackRedis(seckillGoodsId, userId);
     }
 
     private String generateOrderNo(String prefix) {

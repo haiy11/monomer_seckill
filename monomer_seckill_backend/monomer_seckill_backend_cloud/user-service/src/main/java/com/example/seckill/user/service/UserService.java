@@ -3,13 +3,13 @@ package com.example.seckill.user.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.seckill.common.auth.TokenService;
 import com.example.seckill.common.core.BizException;
-import com.example.seckill.common.core.Constants;
-import com.example.seckill.common.entity.MerchantApply;
-import com.example.seckill.common.entity.User;
-import com.example.seckill.common.mapper.MerchantApplyMapper;
-import com.example.seckill.common.mapper.UserMapper;
+import com.example.seckill.user.constant.UserConstants;
 import com.example.seckill.user.dto.LoginRequest;
 import com.example.seckill.user.dto.RegisterRequest;
+import com.example.seckill.user.entity.MerchantApply;
+import com.example.seckill.user.entity.User;
+import com.example.seckill.user.mapper.MerchantApplyMapper;
+import com.example.seckill.user.mapper.UserMapper;
 import com.example.seckill.user.vo.LoginVO;
 import com.example.seckill.user.vo.UserVO;
 import org.springframework.stereotype.Service;
@@ -55,7 +55,7 @@ public class UserService {
         user.setPassword(md5(request.getPassword()));
         user.setNickname(request.getNickname());
         user.setPhone(request.getPhone());
-        user.setRole(Constants.ROLE_USER);
+        user.setRole(UserConstants.ROLE_USER);
         userMapper.insert(user);
         return toVO(user);
     }
@@ -101,19 +101,19 @@ public class UserService {
         if (user == null) {
             throw new BizException("用户不存在");
         }
-        if (user.getRole() != Constants.ROLE_USER) {
+        if (user.getRole() != UserConstants.ROLE_USER) {
             throw new BizException("您已是商家或管理员，无需申请");
         }
         Long pending = merchantApplyMapper.selectCount(new LambdaQueryWrapper<MerchantApply>()
                 .eq(MerchantApply::getUserId, userId)
-                .eq(MerchantApply::getStatus, Constants.APPLY_STATUS_PENDING));
+                .eq(MerchantApply::getStatus, UserConstants.APPLY_STATUS_PENDING));
         if (pending != null && pending > 0) {
             throw new BizException("已有待审核的商家申请，请勿重复提交");
         }
         MerchantApply apply = new MerchantApply();
         apply.setUserId(userId);
         apply.setReason(reason);
-        apply.setStatus(Constants.APPLY_STATUS_PENDING);
+        apply.setStatus(UserConstants.APPLY_STATUS_PENDING);
         apply.setApplyTime(LocalDateTime.now());
         merchantApplyMapper.insert(apply);
         return apply;

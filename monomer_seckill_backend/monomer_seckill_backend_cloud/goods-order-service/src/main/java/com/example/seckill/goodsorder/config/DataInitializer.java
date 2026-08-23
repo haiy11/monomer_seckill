@@ -1,14 +1,13 @@
 package com.example.seckill.goodsorder.config;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.seckill.common.core.Constants;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.entity.SeckillGoods;
-import com.example.seckill.common.entity.User;
-import com.example.seckill.common.mapper.GoodsMapper;
-import com.example.seckill.common.mapper.SeckillGoodsMapper;
-import com.example.seckill.common.mapper.UserMapper;
-import com.example.seckill.common.service.StockService;
+import com.example.seckill.goodsorder.constant.GoodsOrderConstants;
+import com.example.seckill.goodsorder.entity.Goods;
+import com.example.seckill.goodsorder.entity.SeckillGoods;
+import com.example.seckill.goodsorder.entity.User;
+import com.example.seckill.goodsorder.mapper.GoodsMapper;
+import com.example.seckill.goodsorder.mapper.SeckillGoodsMapper;
+import com.example.seckill.goodsorder.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -20,10 +19,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 
 /**
- * 应用启动初始化器：创建默认账号、示例商品与秒杀商品，并预载秒杀库存到 Redis。
+ * 应用启动初始化器：创建默认账号、示例商品与秒杀商品。
  *
- * <p>共享数据库下，种子数据统一由本服务（数据属主）幂等初始化，
- * 其余服务不再重复执行建表/种子，避免多服务启动竞态。</p>
+ * <p>共享数据库下，建表与种子数据统一由本服务（数据属主）幂等初始化，
+ * 其余服务不重复执行 DDL/种子，避免多服务启动竞态。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -35,14 +34,11 @@ public class DataInitializer implements ApplicationRunner {
     private final UserMapper userMapper;
     private final GoodsMapper goodsMapper;
     private final SeckillGoodsMapper seckillGoodsMapper;
-    private final StockService stockService;
 
-    public DataInitializer(UserMapper userMapper, GoodsMapper goodsMapper,
-                           SeckillGoodsMapper seckillGoodsMapper, StockService stockService) {
+    public DataInitializer(UserMapper userMapper, GoodsMapper goodsMapper, SeckillGoodsMapper seckillGoodsMapper) {
         this.userMapper = userMapper;
         this.goodsMapper = goodsMapper;
         this.seckillGoodsMapper = seckillGoodsMapper;
-        this.stockService = stockService;
     }
 
     @Override
@@ -53,8 +49,6 @@ public class DataInitializer implements ApplicationRunner {
             seedGoods(merchant.getId());
             seedSeckillGoods(merchant.getId());
         }
-        stockService.preloadAll();
-        log.info("秒杀库存已预载到 Redis");
     }
 
     private void seedUsers() {
@@ -62,9 +56,9 @@ public class DataInitializer implements ApplicationRunner {
         if (count != null && count > 0) {
             return;
         }
-        insertUser("admin", "admin123", "管理员", Constants.ROLE_ADMIN);
-        insertUser("user1", "123456", "演示用户", Constants.ROLE_USER);
-        insertUser("merchant1", "123456", "演示商家", Constants.ROLE_MERCHANT);
+        insertUser("admin", "admin123", "管理员", GoodsOrderConstants.ROLE_ADMIN);
+        insertUser("user1", "123456", "演示用户", GoodsOrderConstants.ROLE_USER);
+        insertUser("merchant1", "123456", "演示商家", GoodsOrderConstants.ROLE_MERCHANT);
         log.info("已初始化默认账号：admin/admin123（管理员）、user1/123456（用户）、merchant1/123456（商家）");
     }
 
@@ -95,7 +89,7 @@ public class DataInitializer implements ApplicationRunner {
         goods.setDescription(desc);
         goods.setPrice(new BigDecimal(price));
         goods.setStock(stock);
-        goods.setStatus(Constants.GOODS_STATUS_ON);
+        goods.setStatus(GoodsOrderConstants.GOODS_STATUS_ON);
         goodsMapper.insert(goods);
     }
 
@@ -111,7 +105,7 @@ public class DataInitializer implements ApplicationRunner {
         sg.setSeckillStock(50);
         sg.setStartTime(LocalDateTime.now().minusHours(1));
         sg.setEndTime(LocalDateTime.now().plusHours(24));
-        sg.setStatus(Constants.SECKILL_STATUS_ON);
+        sg.setStatus(GoodsOrderConstants.SECKILL_STATUS_ON);
         seckillGoodsMapper.insert(sg);
         log.info("已初始化 1 个示例秒杀商品（进行中）");
     }

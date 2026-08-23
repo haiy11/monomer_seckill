@@ -1,6 +1,6 @@
 package com.example.seckill.goodsorder.vo;
 
-import com.example.seckill.common.entity.OrderItem;
+import com.example.seckill.goodsorder.entity.OrderItem;
 import lombok.Data;
 
 import java.math.BigDecimal;

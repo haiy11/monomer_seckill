@@ -19,7 +19,7 @@
     <description>秒杀项目 P3：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用</description>
 
     <modules>
-        <module>seckill-common</module>
+        <module>common-service</module>
         <module>user-service</module>
         <module>goods-order-service</module>
         <module>seckill-service</module>
@@ -30,7 +30,7 @@
         <spring-cloud.version>2023.0.3</spring-cloud.version>
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
-        <seckill-common.version>1.0.0</seckill-common.version>
+        <common-service.version>1.0.0</common-service.version>
     </properties>
 
     <!-- 统一依赖版本仲裁（子模块在此读取版本，依赖仍需在子模块显式声明） -->
@@ -55,8 +55,8 @@
             <!-- 内部公共模块 -->
             <dependency>
                 <groupId>com.example.seckill</groupId>
-                <artifactId>seckill-common</artifactId>
-                <version>${seckill-common.version}</version>
+                <artifactId>common-service</artifactId>
+                <version>${common-service.version}</version>
             </dependency>
             <!-- MyBatis-Plus -->
             <dependency>

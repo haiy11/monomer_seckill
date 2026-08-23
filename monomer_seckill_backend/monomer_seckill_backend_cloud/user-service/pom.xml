@@ -18,7 +18,7 @@
         <!-- 内部公共模块 -->
         <dependency>
             <groupId>com.example.seckill</groupId>
-            <artifactId>seckill-common</artifactId>
+            <artifactId>common-service</artifactId>
         </dependency>
 
         <dependency>

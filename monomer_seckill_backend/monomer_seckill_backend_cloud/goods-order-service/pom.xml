@@ -18,7 +18,7 @@
         <!-- 内部公共模块 -->
         <dependency>
             <groupId>com.example.seckill</groupId>
-            <artifactId>seckill-common</artifactId>
+            <artifactId>common-service</artifactId>
         </dependency>
 
         <dependency>
@@ -45,6 +45,16 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
+        </dependency>
+
+        <!-- OpenFeign：反向调用 seckill-service 回滚 Redis 预扣库存 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
         <dependency>

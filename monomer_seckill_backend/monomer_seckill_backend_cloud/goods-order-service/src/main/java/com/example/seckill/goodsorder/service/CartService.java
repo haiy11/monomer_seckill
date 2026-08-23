@@ -2,12 +2,12 @@ package com.example.seckill.goodsorder.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.seckill.common.core.BizException;
-import com.example.seckill.common.core.Constants;
-import com.example.seckill.common.entity.CartItem;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.mapper.CartItemMapper;
-import com.example.seckill.common.mapper.GoodsMapper;
+import com.example.seckill.goodsorder.constant.GoodsOrderConstants;
 import com.example.seckill.goodsorder.dto.CartItemRequest;
+import com.example.seckill.goodsorder.entity.CartItem;
+import com.example.seckill.goodsorder.entity.Goods;
+import com.example.seckill.goodsorder.mapper.CartItemMapper;
+import com.example.seckill.goodsorder.mapper.GoodsMapper;
 import com.example.seckill.goodsorder.vo.CartItemVO;
 import org.springframework.stereotype.Service;
 
@@ -106,7 +106,8 @@ public class CartService {
             throw new BizException("商品ID不能为空");
         }
         Goods goods = goodsMapper.selectById(goodsId);
-        if (goods == null || goods.getStatus() == null || goods.getStatus() != Constants.GOODS_STATUS_ON) {
+        if (goods == null || goods.getStatus() == null
+                || goods.getStatus() != GoodsOrderConstants.GOODS_STATUS_ON) {
             throw new BizException("商品不存在或未上架");
         }
         return goods;

@@ -2,7 +2,7 @@ package com.example.seckill.user.controller;
 
 import com.example.seckill.common.core.Result;
 import com.example.seckill.common.core.UserContext;
-import com.example.seckill.common.entity.MerchantApply;
+import com.example.seckill.user.entity.MerchantApply;
 import com.example.seckill.user.dto.LoginRequest;
 import com.example.seckill.user.dto.MerchantApplyRequest;
 import com.example.seckill.user.dto.RegisterRequest;

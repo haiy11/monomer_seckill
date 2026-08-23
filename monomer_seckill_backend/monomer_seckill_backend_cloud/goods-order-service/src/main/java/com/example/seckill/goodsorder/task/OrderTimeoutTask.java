@@ -1,7 +1,7 @@
 package com.example.seckill.goodsorder.task;
 
-import com.example.seckill.common.entity.MallOrder;
-import com.example.seckill.common.entity.SeckillOrder;
+import com.example.seckill.goodsorder.entity.MallOrder;
+import com.example.seckill.goodsorder.entity.SeckillOrder;
 import com.example.seckill.goodsorder.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

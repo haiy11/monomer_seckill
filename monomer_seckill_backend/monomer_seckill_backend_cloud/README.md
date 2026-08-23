@@ -4,57 +4,57 @@
 
 原单体代码保留在 `../monomer_seckill_backend/`，未做任何改动；本目录是从单体拆分出的微服务工程。
 
-## 一、模块划分
+## 一、模块划分与职责边界
 
 | 模块 | 服务名 / 端口 | 职责 |
 |------|--------------|------|
-| `seckill-common` | （公共库，不注册） | 统一响应体、异常、常量、Redis 工具、认证拦截器、**共享实体与 Mapper**、共享秒杀商品/库存服务、Lua 脚本 |
-| `user-service` | `user-service` / **7001** | 用户注册登录、商家申请，以及**管理员审核、商家商品管理**等人员相关业务 |
-| `goods-order-service` | `goods-order-service` / **7002** | 商品、秒杀商品、购物车、订单（含秒杀订单）业务，并暴露内部扣库存/下单接口 |
-| `seckill-service` | `seckill-service` / **7003** | 秒杀下单入口（高并发流量隔离），编排调用 goods-order-service |
+| `common-service` | （公共库，不注册） | **仅系统级基础设施**：统一响应体、异常、用户上下文、认证（Token/AuthInterceptor）、Redis 工具、CORS、MyBatis 字段填充。不含任何业务领域代码 |
+| `user-service` | `user-service` / **7001** | 用户 + 管理员 + 商家（人员相关）。持有 `mall_user`、`merchant_apply`，以及审核/管理所需的 `goods`、`seckill_goods`、`mall_order`、`seckill_order` 视图与 Mapper |
+| `goods-order-service` | `goods-order-service` / **7002** | 商品 + 购物车 + 订单（业务紧密）。持有 `goods`、`cart_item`、`mall_order`、`order_item`、`seckill_order`，并负责秒杀订单落库与 DB 库存扣减/回补 |
+| `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、Redis 预扣库存、Lua 脚本、秒杀商品查询 |
 
-拆分遵循用户约定：
+### 设计原则
 
-- **公共类 / 配置类**抽取到 `seckill-common`，其余服务通过依赖引入复用，避免重复定义；
-- **user / admin / merchant**（人员相关）合并为 `user-service`；
-- **goods / cart / order**（业务紧密）合并为 `goods-order-service`；
-- **seckill**（高并发，最易出问题）单独拆为 `seckill-service`，隔离流量。
+- **公共模块只放跨服务复用的基础设施**，不承载任何实体/Mapper/业务 Service/VO/常量/Lua。
+- **每个服务拥有自己用到的实体、Mapper、常量、Service、VO、Lua**（共享库下个别表被多个服务访问时，各自持有自己的访问代码副本，互不影响）。
+- 修改某个服务的数据访问或业务逻辑，只需重新构建/部署该服务，不影响其它服务。
 
-## 二、调用链（OpenFeign）
+## 二、调用链（OpenFeign，双向）
 
 ```
 客户端 → seckill-service (7003)
             │  POST /api/seckill/{goodsId}
+            │  ① 本地校验可购买（SeckillGoodsService）
+            │  ② 本地 Redis 预扣库存（StockService + Lua）
             ▼
-        seckill-service 编排：
-            ① getPurchasable()      ─┐
-            ② deductStock()          │  OpenFeign (Nacos 服务发现)
-            ③ createSeckillOrder()   │
-            ④ rollbackRedis() 失败时 ─┘
-            ▼
-        goods-order-service (7002)
-            /internal/... 内部接口 → Redis 预扣(Lua) + DB 扣减 + 建单
+        goods-order-service (7002)  ◄── OpenFeign createSeckillOrder
+            │  DB 扣减 seckill_goods 库存 + 落库 seckill_order
+            │
+        （取消 / 超时关闭秒杀订单时）
+        goods-order-service ── OpenFeign rollbackRedis ──► seckill-service (7003)
 ```
 
-秒杀下单主链路为 `seckill-service → goods-order-service`，是 P3 阶段演示的 Feign 远程调用链。
+- `seckill-service → goods-order-service`：Redis 预扣成功后，建单落库（DB 扣减 + 插订单）。
+- `goods-order-service → seckill-service`：取消/超时关闭秒杀订单时，回滚 Redis 预扣库存。
 
 ## 三、接口分布（P4 网关接入前，各服务端口直连）
 
 | 方法 | 路径 | 所在服务 |
 |------|------|---------|
-| POST | `/api/user/register` `/api/user/login` `/api/user/info` `/api/user/apply-merchant` | user-service :7001 |
+| POST/GET | `/api/user/**` | user-service :7001 |
 | POST/GET | `/api/admin/**` | user-service :7001 |
 | GET/POST/PUT | `/api/merchant/**` | user-service :7001 |
-| GET | `/api/goods` `/api/goods/{id}` `/api/seckill-goods` `/api/seckill-goods/{id}` | goods-order-service :7002 |
+| GET | `/api/goods` `/api/goods/{id}` | goods-order-service :7002 |
 | GET/POST/PUT/DELETE | `/api/cart/**` | goods-order-service :7002 |
 | GET/POST | `/api/order/**` | goods-order-service :7002 |
+| GET | `/api/seckill-goods` `/api/seckill-goods/{id}` | seckill-service :7003 |
 | POST | `/api/seckill/{goodsId}` | seckill-service :7003 |
 
 ## 四、启动步骤
 
 1. 保证中间件就绪：MySQL(`localhost:3307`)、Redis(`localhost:6379`)、Nacos(`localhost:8848`)。
 2. 切换 JDK 21 + Maven 3.9.10（见 `seckill-build-run` skill）。
-3. 先启动 `goods-order-service`（负责建表 + 种子数据 + 库存预载），再启动 `user-service`、`seckill-service`（顺序无所谓）。
+3. **先启动 `goods-order-service`**（负责建表 + 种子数据），再启动 `seckill-service`（预载秒杀库存到 Redis）、`user-service`。
 
 ```powershell
 # 根目录一键打包
@@ -62,15 +62,15 @@ mvn -DskipTests clean package
 
 # 分别启动
 cd goods-order-service ; mvn spring-boot:run
-cd user-service        ; mvn spring-boot:run
 cd seckill-service     ; mvn spring-boot:run
+cd user-service        ; mvn spring-boot:run
 ```
 
 ## 五、设计说明（P3 阶段取舍）
 
-- **共享单个 MySQL 库**（用户选择）：四个服务连同一个 `monomer_seckill` 库；`goods-order-service` 作为数据属主负责 `schema.sql`/种子初始化，其余服务 `spring.sql.init.mode=never`。
-- **共享数据模型下沉 common**：实体 + Mapper 放入 `seckill-common`（shared kernel），减少各服务重复定义；user-service 的管理员/商家直接复用这些 Mapper 访问商品/订单表。
-- **seckill-service 无 DB 依赖**：只依赖 Redis（token 校验），商品/库存/订单全部经 Feign 调 goods-order-service，实现高并发入口与数据侧解耦。
+- **共享单个 MySQL 库**（用户选择）：`goods-order-service` 作为数据属主负责 `schema.sql` + 种子数据初始化，其余服务 `spring.sql.init.mode=never`。
+- **共享库下的代码副本**：`goods`、`seckill_goods`、`mall_order`、`seckill_order` 等表被多个服务访问，各服务在自身模块内持有对应的实体/Mapper 副本，换取部署与演进的独立性（避免回到共享内核式耦合）。
+- **秒杀订单生命周期归属**：`seckill_goods`/Redis 预扣在 seckill-service，`seckill_order` 落库与生命周期在 goods-order-service，两者经 Feign 协作；取消/超时的 DB 回补与 Redis 回滚分别落在两个服务。
 - **内部接口返回 `Result<T>`**：避免把「库存不足/重复抢购」等业务语义映射成 HTTP 5xx，导致 Feign 侧无法区分。
 
 ## 六、后续阶段衔接

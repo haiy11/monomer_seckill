@@ -2,8 +2,8 @@ package com.example.seckill.user.controller;
 
 import com.example.seckill.common.core.Result;
 import com.example.seckill.common.core.UserContext;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.entity.SeckillGoods;
+import com.example.seckill.user.entity.Goods;
+import com.example.seckill.user.entity.SeckillGoods;
 import com.example.seckill.user.dto.SeckillApplyRequest;
 import com.example.seckill.user.service.MerchantService;
 import org.springframework.web.bind.annotation.GetMapping;

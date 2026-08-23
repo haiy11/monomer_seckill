@@ -2,9 +2,9 @@ package com.example.seckill.goodsorder.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.seckill.common.core.BizException;
-import com.example.seckill.common.core.Constants;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.mapper.GoodsMapper;
+import com.example.seckill.goodsorder.constant.GoodsOrderConstants;
+import com.example.seckill.goodsorder.entity.Goods;
+import com.example.seckill.goodsorder.mapper.GoodsMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,7 +29,7 @@ public class GoodsService {
      */
     public List<Goods> listOnSale() {
         return goodsMapper.selectList(new LambdaQueryWrapper<Goods>()
-                .eq(Goods::getStatus, Constants.GOODS_STATUS_ON)
+                .eq(Goods::getStatus, GoodsOrderConstants.GOODS_STATUS_ON)
                 .orderByAsc(Goods::getId));
     }
 

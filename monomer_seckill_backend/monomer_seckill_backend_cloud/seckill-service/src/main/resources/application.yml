@@ -4,17 +4,34 @@ server:
 spring:
   application:
     name: seckill-service
-  # 仅使用 Redis 做 token 校验，不直接访问数据库（商品/库存/订单均走 goods-order-service）
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3307/monomer_seckill?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: root
+    password: 123456hy
   data:
     redis:
       host: localhost
       port: 6379
       database: 0
       timeout: 3s
+  sql:
+    init:
+      # 建表由 goods-order-service 负责，本服务只读 seckill_goods，不执行 DDL
+      mode: never
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
 
 logging:
   level:

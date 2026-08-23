@@ -2,25 +2,24 @@ package com.example.seckill.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.seckill.common.core.BizException;
-import com.example.seckill.common.core.Constants;
-import com.example.seckill.common.entity.Goods;
-import com.example.seckill.common.entity.MallOrder;
-import com.example.seckill.common.entity.MerchantApply;
-import com.example.seckill.common.entity.SeckillGoods;
-import com.example.seckill.common.entity.SeckillOrder;
-import com.example.seckill.common.entity.User;
-import com.example.seckill.common.mapper.GoodsMapper;
-import com.example.seckill.common.mapper.MallOrderMapper;
-import com.example.seckill.common.mapper.MerchantApplyMapper;
-import com.example.seckill.common.mapper.SeckillGoodsMapper;
-import com.example.seckill.common.mapper.SeckillOrderMapper;
-import com.example.seckill.common.mapper.UserMapper;
-import com.example.seckill.common.service.SeckillGoodsService;
-import com.example.seckill.common.service.StockService;
-import com.example.seckill.common.vo.SeckillGoodsVO;
+import com.example.seckill.common.redis.RedisUtil;
+import com.example.seckill.user.constant.UserConstants;
 import com.example.seckill.user.dto.LoginRequest;
+import com.example.seckill.user.entity.Goods;
+import com.example.seckill.user.entity.MallOrder;
+import com.example.seckill.user.entity.MerchantApply;
+import com.example.seckill.user.entity.SeckillGoods;
+import com.example.seckill.user.entity.SeckillOrder;
+import com.example.seckill.user.entity.User;
+import com.example.seckill.user.mapper.GoodsMapper;
+import com.example.seckill.user.mapper.MallOrderMapper;
+import com.example.seckill.user.mapper.MerchantApplyMapper;
+import com.example.seckill.user.mapper.SeckillGoodsMapper;
+import com.example.seckill.user.mapper.SeckillOrderMapper;
+import com.example.seckill.user.mapper.UserMapper;
 import com.example.seckill.user.vo.LoginVO;
 import com.example.seckill.user.vo.MerchantApplyVO;
+import com.example.seckill.user.vo.SeckillGoodsVO;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -28,6 +27,8 @@ import java.util.List;
 
 /**
  * 管理员服务：登录、审核商家申请、审核商品上架、审核秒杀商品上架、订单与库存管理。
+ *
+ * <p>本服务直连共享库进行审核/管理所需的读与状态变更；秒杀库存预载与缓存失效在此本地实现。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -40,24 +41,22 @@ public class AdminService {
     private final MerchantApplyMapper merchantApplyMapper;
     private final GoodsMapper goodsMapper;
     private final SeckillGoodsMapper seckillGoodsMapper;
-    private final SeckillGoodsService seckillGoodsService;
-    private final StockService stockService;
     private final MallOrderMapper mallOrderMapper;
     private final SeckillOrderMapper seckillOrderMapper;
+    private final RedisUtil redisUtil;
 
     public AdminService(UserService userService, UserMapper userMapper, MerchantApplyMapper merchantApplyMapper,
                         GoodsMapper goodsMapper, SeckillGoodsMapper seckillGoodsMapper,
-                        SeckillGoodsService seckillGoodsService, StockService stockService,
-                        MallOrderMapper mallOrderMapper, SeckillOrderMapper seckillOrderMapper) {
+                        MallOrderMapper mallOrderMapper, SeckillOrderMapper seckillOrderMapper,
+                        RedisUtil redisUtil) {
         this.userService = userService;
         this.userMapper = userMapper;
         this.merchantApplyMapper = merchantApplyMapper;
         this.goodsMapper = goodsMapper;
         this.seckillGoodsMapper = seckillGoodsMapper;
-        this.seckillGoodsService = seckillGoodsService;
-        this.stockService = stockService;
         this.mallOrderMapper = mallOrderMapper;
         this.seckillOrderMapper = seckillOrderMapper;
+        this.redisUtil = redisUtil;
     }
 
     /**
@@ -65,7 +64,7 @@ public class AdminService {
      */
     public LoginVO login(LoginRequest request) {
         LoginVO vo = userService.login(request);
-        if (vo.getUser().getRole() == null || vo.getUser().getRole() != Constants.ROLE_ADMIN) {
+        if (vo.getUser().getRole() == null || vo.getUser().getRole() != UserConstants.ROLE_ADMIN) {
             throw new BizException(403, "无管理员权限");
         }
         return vo;
@@ -88,12 +87,12 @@ public class AdminService {
         if (user == null) {
             throw new BizException("申请人不存在");
         }
-        apply.setStatus(Constants.APPLY_STATUS_APPROVED);
+        apply.setStatus(UserConstants.APPLY_STATUS_APPROVED);
         apply.setReviewTime(LocalDateTime.now());
         apply.setReviewRemark(remark);
         merchantApplyMapper.updateById(apply);
 
-        user.setRole(Constants.ROLE_MERCHANT);
+        user.setRole(UserConstants.ROLE_MERCHANT);
         userMapper.updateById(user);
     }
 
@@ -102,7 +101,7 @@ public class AdminService {
      */
     public void rejectMerchantApply(Long id, String remark) {
         MerchantApply apply = requirePendingApply(id);
-        apply.setStatus(Constants.APPLY_STATUS_REJECTED);
+        apply.setStatus(UserConstants.APPLY_STATUS_REJECTED);
         apply.setReviewTime(LocalDateTime.now());
         apply.setReviewRemark(remark);
         merchantApplyMapper.updateById(apply);
@@ -113,7 +112,7 @@ public class AdminService {
         if (apply == null) {
             throw new BizException("申请不存在");
         }
-        if (apply.getStatus() == null || apply.getStatus() != Constants.APPLY_STATUS_PENDING) {
+        if (apply.getStatus() == null || apply.getStatus() != UserConstants.APPLY_STATUS_PENDING) {
             throw new BizException("该申请已处理");
         }
         return apply;
@@ -130,7 +129,7 @@ public class AdminService {
      */
     public void approveGoods(Long id) {
         Goods goods = requirePendingGoods(id);
-        goods.setStatus(Constants.GOODS_STATUS_ON);
+        goods.setStatus(UserConstants.GOODS_STATUS_ON);
         goodsMapper.updateById(goods);
     }
 
@@ -139,7 +138,7 @@ public class AdminService {
      */
     public void rejectGoods(Long id) {
         Goods goods = requirePendingGoods(id);
-        goods.setStatus(Constants.GOODS_STATUS_REJECTED);
+        goods.setStatus(UserConstants.GOODS_STATUS_REJECTED);
         goodsMapper.updateById(goods);
     }
 
@@ -148,7 +147,7 @@ public class AdminService {
         if (goods == null) {
             throw new BizException("商品不存在");
         }
-        if (goods.getStatus() == null || goods.getStatus() != Constants.GOODS_STATUS_PENDING) {
+        if (goods.getStatus() == null || goods.getStatus() != UserConstants.GOODS_STATUS_PENDING) {
             throw new BizException("该商品已处理");
         }
         return goods;
@@ -157,7 +156,9 @@ public class AdminService {
     // ==================== 秒杀商品审核 ====================
 
     public List<SeckillGoodsVO> listSeckillGoods() {
-        return seckillGoodsService.listAll().stream().map(seckillGoodsService::toVO).toList();
+        List<SeckillGoods> list = seckillGoodsMapper.selectList(new LambdaQueryWrapper<SeckillGoods>()
+                .orderByDesc(SeckillGoods::getId));
+        return list.stream().map(this::toVO).toList();
     }
 
     /**
@@ -165,10 +166,10 @@ public class AdminService {
      */
     public void approveSeckillGoods(Long id) {
         SeckillGoods sg = requirePendingSeckillGoods(id);
-        sg.setStatus(Constants.SECKILL_STATUS_ON);
+        sg.setStatus(UserConstants.SECKILL_STATUS_ON);
         seckillGoodsMapper.updateById(sg);
-        seckillGoodsService.evictCache(id);
-        stockService.preload(id);
+        evictCache(id);
+        preload(id);
     }
 
     /**
@@ -176,9 +177,9 @@ public class AdminService {
      */
     public void rejectSeckillGoods(Long id) {
         SeckillGoods sg = requirePendingSeckillGoods(id);
-        sg.setStatus(Constants.SECKILL_STATUS_REJECTED);
+        sg.setStatus(UserConstants.SECKILL_STATUS_REJECTED);
         seckillGoodsMapper.updateById(sg);
-        seckillGoodsService.evictCache(id);
+        evictCache(id);
     }
 
     private SeckillGoods requirePendingSeckillGoods(Long id) {
@@ -186,7 +187,7 @@ public class AdminService {
         if (sg == null) {
             throw new BizException("秒杀商品不存在");
         }
-        if (sg.getStatus() == null || sg.getStatus() != Constants.SECKILL_STATUS_PENDING) {
+        if (sg.getStatus() == null || sg.getStatus() != UserConstants.SECKILL_STATUS_PENDING) {
             throw new BizException("该秒杀商品已处理");
         }
         return sg;
@@ -203,11 +204,36 @@ public class AdminService {
     }
 
     public void resetStock() {
-        stockService.preloadAll();
+        preloadAll();
     }
 
     public void resetStock(Long seckillGoodsId) {
-        stockService.preload(seckillGoodsId);
+        preload(seckillGoodsId);
+    }
+
+    // ==================== 本地缓存/预载 ====================
+
+    private void preload(Long seckillGoodsId) {
+        SeckillGoods sg = seckillGoodsMapper.selectById(seckillGoodsId);
+        if (sg == null) {
+            return;
+        }
+        redisUtil.set(UserConstants.STOCK_KEY_PREFIX + seckillGoodsId, String.valueOf(sg.getSeckillStock()));
+        redisUtil.delete(UserConstants.USERS_KEY_PREFIX + seckillGoodsId);
+    }
+
+    private void preloadAll() {
+        List<SeckillGoods> list = seckillGoodsMapper.selectList(null);
+        for (SeckillGoods sg : list) {
+            redisUtil.set(UserConstants.STOCK_KEY_PREFIX + sg.getId(), String.valueOf(sg.getSeckillStock()));
+            redisUtil.delete(UserConstants.USERS_KEY_PREFIX + sg.getId());
+        }
+    }
+
+    private void evictCache(Long id) {
+        if (id != null) {
+            redisUtil.delete(UserConstants.GOODS_KEY_PREFIX + id);
+        }
     }
 
     private MerchantApplyVO toVO(MerchantApply apply) {
@@ -223,5 +249,33 @@ public class AdminService {
         vo.setReviewTime(apply.getReviewTime());
         vo.setReviewRemark(apply.getReviewRemark());
         return vo;
+    }
+
+    private SeckillGoodsVO toVO(SeckillGoods sg) {
+        SeckillGoodsVO vo = new SeckillGoodsVO();
+        vo.setId(sg.getId());
+        vo.setMerchantId(sg.getMerchantId());
+        vo.setName(sg.getName());
+        vo.setSeckillPrice(sg.getSeckillPrice());
+        vo.setSeckillStock(sg.getSeckillStock());
+        vo.setStartTime(sg.getStartTime());
+        vo.setEndTime(sg.getEndTime());
+        vo.setStatus(sg.getStatus());
+        vo.setSeckillState(calcState(sg));
+        return vo;
+    }
+
+    private int calcState(SeckillGoods sg) {
+        if (sg.getStartTime() == null || sg.getEndTime() == null) {
+            return 2;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(sg.getStartTime())) {
+            return 0;
+        }
+        if (now.isAfter(sg.getEndTime())) {
+            return 2;
+        }
+        return 1;
     }
 }

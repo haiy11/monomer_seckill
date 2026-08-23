@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.example.seckill</groupId>
+        <artifactId>monomer_seckill_backend_cloud</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>common-service</artifactId>
+    <name>common-service</name>
+    <description>系统级公共模块：统一响应体/异常/用户上下文/认证/Redis 基础设施/CORS/MyBatis 字段填充（不含任何业务领域代码）</description>
+
+    <dependencies>
+        <!-- Web（统一响应体、全局异常、拦截器、CORS 所需） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Redis（TokenService / RedisUtil / RedisConfig 所需） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- 事务异常 DuplicateKeyException 所在模块，保证无 DB 的服务也能加载 GlobalExceptionHandler -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus：MyMetaObjectHandler 字段填充所需，标记 optional 由具体服务按需引入 -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

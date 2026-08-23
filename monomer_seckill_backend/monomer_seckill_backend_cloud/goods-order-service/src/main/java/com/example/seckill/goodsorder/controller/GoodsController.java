@@ -1,7 +1,7 @@
 package com.example.seckill.goodsorder.controller;
 
 import com.example.seckill.common.core.Result;
-import com.example.seckill.common.entity.Goods;
+import com.example.seckill.goodsorder.entity.Goods;
 import com.example.seckill.goodsorder.service.GoodsService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

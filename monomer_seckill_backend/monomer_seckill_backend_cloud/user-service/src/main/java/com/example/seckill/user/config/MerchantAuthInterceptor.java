@@ -1,10 +1,10 @@
 package com.example.seckill.user.config;
 
 import com.example.seckill.common.auth.TokenService;
-import com.example.seckill.common.core.Constants;
 import com.example.seckill.common.core.UserContext;
-import com.example.seckill.common.entity.User;
-import com.example.seckill.common.mapper.UserMapper;
+import com.example.seckill.user.constant.UserConstants;
+import com.example.seckill.user.entity.User;
+import com.example.seckill.user.mapper.UserMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
@@ -43,7 +43,7 @@ public class MerchantAuthInterceptor implements HandlerInterceptor {
             return false;
         }
         User user = userMapper.selectById(userId);
-        if (user == null || user.getRole() == null || user.getRole() != Constants.ROLE_MERCHANT) {
+        if (user == null || user.getRole() == null || user.getRole() != UserConstants.ROLE_MERCHANT) {
             writeError(response, 403, "无商家权限");
             return false;
         }

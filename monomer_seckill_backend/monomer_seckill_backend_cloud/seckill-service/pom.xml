@@ -18,7 +18,7 @@
         <!-- 内部公共模块 -->
         <dependency>
             <groupId>com.example.seckill</groupId>
-            <artifactId>seckill-common</artifactId>
+            <artifactId>common-service</artifactId>
         </dependency>
 
         <dependency>
@@ -36,11 +36,15 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
-        <!-- 共享实体(SeckillGoods)携带 MyBatis-Plus 注解，作为 Feign DTO 时需该注解/枚举在 classpath 上可解析。
-             本服务不配置数据源，MyBatis-Plus 自动配置会被跳过，不会建立数据库连接。 -->
+        <!-- MyBatis-Plus：本服务持有 SeckillGoods 实体与 Mapper，直连共享库读取秒杀商品 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- OpenFeign 远程调用 + 负载均衡 -->

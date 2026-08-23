@@ -18,10 +18,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "com.example.seckill.common.auth",
         "com.example.seckill.common.redis",
         "com.example.seckill.common.web",
-        "com.example.seckill.common.mybatis",
-        "com.example.seckill.common.service"
+        "com.example.seckill.common.mybatis"
 })
-@MapperScan("com.example.seckill.common.mapper")
+@MapperScan("com.example.seckill.user.mapper")
 public class UserServiceApplication {
 
     public static void main(String[] args) {

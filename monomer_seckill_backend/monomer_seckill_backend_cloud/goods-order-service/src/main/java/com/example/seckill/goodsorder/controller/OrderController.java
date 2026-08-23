@@ -2,8 +2,8 @@ package com.example.seckill.goodsorder.controller;
 
 import com.example.seckill.common.core.Result;
 import com.example.seckill.common.core.UserContext;
-import com.example.seckill.common.entity.MallOrder;
-import com.example.seckill.common.entity.SeckillOrder;
+import com.example.seckill.goodsorder.entity.MallOrder;
+import com.example.seckill.goodsorder.entity.SeckillOrder;
 import com.example.seckill.goodsorder.service.OrderService;
 import com.example.seckill.goodsorder.vo.OrderVO;
 import org.springframework.web.bind.annotation.GetMapping;
