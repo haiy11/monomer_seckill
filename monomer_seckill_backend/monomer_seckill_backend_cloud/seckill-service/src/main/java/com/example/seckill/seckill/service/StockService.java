@@ -15,9 +15,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * 秒杀库存服务（Redis 预扣库存核心，秒杀域专属）。
  *
- * <p>把秒杀库存预载到 Redis，用 Lua 脚本原子完成「判库存 → 判重复 → 扣库存 → 记用户」。
- * 数据库侧秒杀库存的持久化扣减/回补由 goods-order-service 在建单时完成，
- * 本服务只负责 Redis 这一高并发热路径。</p>
+ * <p>把秒杀库存预载到 Redis，用 Lua 脚本原子完成「判库存 → 判重复 → 扣库存 → 记用户」，
+ * 数据库秒杀库存作为持久化兜底。Redis 预扣、DB 扣减/回补、回滚统一在秒杀域内完成。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -90,12 +89,29 @@ public class StockService {
     }
 
     /**
-     * 仅回滚 Redis（下单 DB 写入失败 / 取消 / 超时关闭时由调用方触发）。
+     * 数据库原子扣减秒杀库存。
+     */
+    public int deductDb(Long seckillGoodsId) {
+        return seckillGoodsMapper.deductStock(seckillGoodsId);
+    }
+
+    /**
+     * 仅回滚 Redis（下单 DB 写入失败时调用）。
      */
     public void rollbackRedis(Long seckillGoodsId, Long userId) {
         redisUtil.executeScript(rollbackScript,
                 List.of(stockKey(seckillGoodsId), usersKey(seckillGoodsId)),
                 String.valueOf(userId));
+    }
+
+    /**
+     * 完整回滚（取消 / 超时关闭时调用）：回补 Redis 与 DB 库存。
+     */
+    public void rollback(Long seckillGoodsId, Long userId) {
+        redisUtil.executeScript(rollbackScript,
+                List.of(stockKey(seckillGoodsId), usersKey(seckillGoodsId)),
+                String.valueOf(userId));
+        seckillGoodsMapper.restoreStock(seckillGoodsId);
     }
 
     private String stockKey(Long seckillGoodsId) {

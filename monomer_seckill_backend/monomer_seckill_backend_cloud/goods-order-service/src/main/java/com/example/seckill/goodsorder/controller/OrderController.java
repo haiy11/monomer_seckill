@@ -3,7 +3,6 @@ package com.example.seckill.goodsorder.controller;
 import com.example.seckill.common.core.Result;
 import com.example.seckill.common.core.UserContext;
 import com.example.seckill.goodsorder.entity.MallOrder;
-import com.example.seckill.goodsorder.entity.SeckillOrder;
 import com.example.seckill.goodsorder.service.OrderService;
 import com.example.seckill.goodsorder.vo.OrderVO;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 订单接口（需登录）。
+ * 订单接口（需登录，正常商品订单）。
  *
  * @author haiy
  * @date 2026/08/17
@@ -54,23 +53,6 @@ public class OrderController {
     @PostMapping("/{orderNo}/cancel")
     public Result<Void> cancel(@PathVariable String orderNo) {
         orderService.cancelNormal(orderNo, UserContext.getUserId());
-        return Result.ok();
-    }
-
-    @GetMapping("/seckill/list")
-    public Result<List<SeckillOrder>> seckillList() {
-        return Result.ok(orderService.listSeckillByUser(UserContext.getUserId()));
-    }
-
-    @PostMapping("/seckill/{orderNo}/pay")
-    public Result<Void> seckillPay(@PathVariable String orderNo) {
-        orderService.paySeckill(orderNo, UserContext.getUserId());
-        return Result.ok();
-    }
-
-    @PostMapping("/seckill/{orderNo}/cancel")
-    public Result<Void> seckillCancel(@PathVariable String orderNo) {
-        orderService.cancelSeckill(orderNo, UserContext.getUserId());
         return Result.ok();
     }
 }

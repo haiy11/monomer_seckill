@@ -3,10 +3,8 @@ package com.example.seckill.goodsorder.config;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.seckill.goodsorder.constant.GoodsOrderConstants;
 import com.example.seckill.goodsorder.entity.Goods;
-import com.example.seckill.goodsorder.entity.SeckillGoods;
 import com.example.seckill.goodsorder.entity.User;
 import com.example.seckill.goodsorder.mapper.GoodsMapper;
-import com.example.seckill.goodsorder.mapper.SeckillGoodsMapper;
 import com.example.seckill.goodsorder.mapper.UserMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -16,13 +14,12 @@ import org.springframework.util.DigestUtils;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 
 /**
- * 应用启动初始化器：创建默认账号、示例商品与秒杀商品。
+ * 应用启动初始化器：创建默认账号与示例正常商品。
  *
- * <p>共享数据库下，建表与种子数据统一由本服务（数据属主）幂等初始化，
- * 其余服务不重复执行 DDL/种子，避免多服务启动竞态。</p>
+ * <p>共享数据库下，建表与「用户 + 正常商品」种子数据由本服务（数据属主）幂等初始化；
+ * 秒杀商品种子数据由 seckill-service 负责。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -33,12 +30,10 @@ public class DataInitializer implements ApplicationRunner {
 
     private final UserMapper userMapper;
     private final GoodsMapper goodsMapper;
-    private final SeckillGoodsMapper seckillGoodsMapper;
 
-    public DataInitializer(UserMapper userMapper, GoodsMapper goodsMapper, SeckillGoodsMapper seckillGoodsMapper) {
+    public DataInitializer(UserMapper userMapper, GoodsMapper goodsMapper) {
         this.userMapper = userMapper;
         this.goodsMapper = goodsMapper;
-        this.seckillGoodsMapper = seckillGoodsMapper;
     }
 
     @Override
@@ -47,7 +42,6 @@ public class DataInitializer implements ApplicationRunner {
         User merchant = userMapper.selectOne(new LambdaQueryWrapper<User>().eq(User::getUsername, "merchant1"));
         if (merchant != null) {
             seedGoods(merchant.getId());
-            seedSeckillGoods(merchant.getId());
         }
     }
 
@@ -91,23 +85,6 @@ public class DataInitializer implements ApplicationRunner {
         goods.setStock(stock);
         goods.setStatus(GoodsOrderConstants.GOODS_STATUS_ON);
         goodsMapper.insert(goods);
-    }
-
-    private void seedSeckillGoods(Long merchantId) {
-        Long count = seckillGoodsMapper.selectCount(null);
-        if (count != null && count > 0) {
-            return;
-        }
-        SeckillGoods sg = new SeckillGoods();
-        sg.setMerchantId(merchantId);
-        sg.setName("iPhone 15 Pro 秒杀专场");
-        sg.setSeckillPrice(new BigDecimal("7999.00"));
-        sg.setSeckillStock(50);
-        sg.setStartTime(LocalDateTime.now().minusHours(1));
-        sg.setEndTime(LocalDateTime.now().plusHours(24));
-        sg.setStatus(GoodsOrderConstants.SECKILL_STATUS_ON);
-        seckillGoodsMapper.insert(sg);
-        log.info("已初始化 1 个示例秒杀商品（进行中）");
     }
 
     private String md5(String raw) {

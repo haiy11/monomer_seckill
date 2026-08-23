@@ -1,7 +1,6 @@
 package com.example.seckill.goodsorder.task;
 
 import com.example.seckill.goodsorder.entity.MallOrder;
-import com.example.seckill.goodsorder.entity.SeckillOrder;
 import com.example.seckill.goodsorder.service.OrderService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +10,9 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 
 /**
- * 订单超时回滚定时任务（正常订单 + 秒杀订单）。
+ * 订单超时回滚定时任务（正常商品订单）。
+ *
+ * <p>秒杀订单的超时回滚由 seckill-service 自己的定时任务处理。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -36,22 +37,12 @@ public class OrderTimeoutTask {
     @Scheduled(fixedDelayString = "${seckill.order-timeout-scan-ms:30000}")
     public void closeTimeoutOrders() {
         LocalDateTime deadline = LocalDateTime.now().minusMinutes(timeoutMinutes);
-
         for (MallOrder order : orderService.listNormalTimeoutUnpaid(deadline)) {
             try {
                 orderService.closeNormalTimeout(order.getId());
                 log.info("正常订单 {} 超时关闭，已回补库存", order.getOrderNo());
             } catch (Exception e) {
                 log.error("关闭超时正常订单 {} 失败", order.getOrderNo(), e);
-            }
-        }
-
-        for (SeckillOrder order : orderService.listSeckillTimeoutUnpaid(deadline)) {
-            try {
-                orderService.closeSeckillTimeout(order.getId());
-                log.info("秒杀订单 {} 超时关闭，已回补库存", order.getOrderNo());
-            } catch (Exception e) {
-                log.error("关闭超时秒杀订单 {} 失败", order.getOrderNo(), e);
             }
         }
     }

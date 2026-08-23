@@ -1,7 +1,7 @@
-package com.example.seckill.goodsorder.mapper;
+package com.example.seckill.seckill.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.example.seckill.goodsorder.entity.SeckillOrder;
+import com.example.seckill.seckill.entity.SeckillOrder;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 

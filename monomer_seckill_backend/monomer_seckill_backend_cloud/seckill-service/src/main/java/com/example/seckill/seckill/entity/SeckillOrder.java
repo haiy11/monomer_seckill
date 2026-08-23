@@ -1,4 +1,4 @@
-package com.example.seckill.goodsorder.entity;
+package com.example.seckill.seckill.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
@@ -11,10 +11,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * 秒杀订单实体，对应表 seckill_order。
- *
- * <p>秒杀订单的落库/支付/取消/超时由本服务（订单域）负责，
- * Redis 预扣库存由 seckill-service 负责，取消/超时通过 Feign 回滚 Redis。</p>
+ * 秒杀订单实体，对应表 seckill_order（秒杀域）。
  *
  * @author haiy
  * @date 2026/08/17

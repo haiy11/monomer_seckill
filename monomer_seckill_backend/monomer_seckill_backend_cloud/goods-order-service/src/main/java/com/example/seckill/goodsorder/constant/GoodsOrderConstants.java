@@ -27,9 +27,6 @@ public final class GoodsOrderConstants {
     /** 商品状态：已拒绝 */
     public static final int GOODS_STATUS_REJECTED = 3;
 
-    /** 秒杀商品状态：已上架（种子数据用） */
-    public static final int SECKILL_STATUS_ON = 1;
-
     /** 订单状态：待支付 */
     public static final int ORDER_STATUS_UNPAID = 0;
     /** 订单状态：已支付 */

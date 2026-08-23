@@ -3,13 +3,13 @@ package com.example.seckill.seckill;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 秒杀服务启动类。
  *
- * <p>秒杀入口独立成服务，隔离高并发流量；本服务持有秒杀商品与 Redis 预扣库存，
- * 下单时通过 OpenFeign 调用 goods-order-service 完成 DB 扣减与订单落库。</p>
+ * <p>秒杀入口独立成服务，隔离高并发流量；秒杀商品、Redis 预扣库存、秒杀订单
+ * 的创建与生命周期均在本服务内闭环，不依赖其它服务。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -23,7 +23,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
         "com.example.seckill.common.mybatis"
 })
 @MapperScan("com.example.seckill.seckill.mapper")
-@EnableFeignClients
+@EnableScheduling
 public class SeckillServiceApplication {
 
     public static void main(String[] args) {

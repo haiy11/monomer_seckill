@@ -20,6 +20,15 @@ public final class SeckillConstants {
     /** 秒杀商品状态：已下架/已结束 */
     public static final int SECKILL_STATUS_OFF = 3;
 
+    /** 秒杀订单状态：待支付 */
+    public static final int ORDER_STATUS_UNPAID = 0;
+    /** 秒杀订单状态：已支付 */
+    public static final int ORDER_STATUS_PAID = 1;
+    /** 秒杀订单状态：已取消 */
+    public static final int ORDER_STATUS_CANCELED = 2;
+    /** 秒杀订单状态：超时关闭 */
+    public static final int ORDER_STATUS_TIMEOUT = 3;
+
     /** Redis 秒杀库存 key 前缀，拼 seckillGoodsId：seckill:stock:{seckillGoodsId} */
     public static final String STOCK_KEY_PREFIX = "seckill:stock:";
 

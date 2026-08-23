@@ -12,7 +12,7 @@
 
     <artifactId>goods-order-service</artifactId>
     <name>goods-order-service</name>
-    <description>商品/购物车/订单服务（业务紧密域，含秒杀库存的内部调用接口）</description>
+    <description>商品/购物车/订单服务（业务紧密域，仅正常商品订单）</description>
 
     <dependencies>
         <!-- 内部公共模块 -->
@@ -45,16 +45,6 @@
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
-        </dependency>
-
-        <!-- OpenFeign：反向调用 seckill-service 回滚 Redis 预扣库存 -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
         <dependency>
