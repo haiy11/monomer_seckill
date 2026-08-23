@@ -1,7 +1,28 @@
-# 秒杀商城（单体 · P2 完成版 · 三角色）
+# 秒杀商城（单体 P2 + 微服务 P3）
 
-秒杀学习项目第二阶段（P2）成果：**Redis 预扣库存 + Lua 脚本** 秒杀，并扩展为**三角色商城系统**
-（普通用户 / 商家 / 管理员），按业务模块分包，为 P3 微服务拆分做准备。
+秒杀学习项目：P2 完成**单体版**（Redis 预扣库存 + Lua 秒杀 + 三角色商城），
+P3 完成**微服务拆分**（Spring Cloud Alibaba + Nacos 注册发现 + OpenFeign 远程调用）。
+
+> 微服务版详见 `monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`，知识点笔记见 `微服务知识.md`。
+
+## 微服务版（P3）
+
+后端在 `monomer_seckill_backend/monomer_seckill_backend_cloud/`，拆为 4 个模块（共享一个 MySQL 库）：
+
+| 模块 | 服务名 / 端口 | 职责 |
+|------|--------------|------|
+| `common-service` | 公共库（不注册） | 统一响应体/异常/认证/Redis 工具/CORS 等基础设施 |
+| `user-service` | user-service / 7001 | 用户 + 管理员 + 商家 |
+| `goods-order-service` | goods-order-service / 7002 | 商品 + 购物车 + 正常订单 |
+| `seckill-service` | seckill-service / 7003 | 秒杀（秒杀商品/库存/秒杀订单全链路） |
+
+前端在 `monomer_seckill_fromend/`：
+- `monomer/index.html`：单体版（调 7099）
+- `cloud/index.html`：微服务版（按 API 前缀路由到 7001/7002/7003）
+
+下面是单体版（P2）说明，代码保持在 `monomer_seckill_backend/monomer_seckill_backend/` 不动。
+
+---
 
 ## 技术栈
 
@@ -51,19 +72,19 @@
 - Lua：`src/main/resources/lua/seckill_deduct.lua`、`seckill_rollback.lua`
 - 超时回滚：`OrderTimeoutTask` 扫描超时未支付订单（正常 + 秒杀）自动关闭并回补库存。
 
-## 目录结构（对应 P3 微服务）
+## 单体目录结构（对应 P3 拆分）
 
 ```
 org.example.monomer_seckill_backend/
-├── common/     Result/BizException/全局异常/Constants/RedisUtil/TokenService/UserContext
-├── config/     RedisConfig/WebConfig/认证拦截器(用户·商家·管理员)/DataInitializer/MyMetaObjectHandler
-├── user/       用户 + 商家申请        → P3 user-service
-├── goods/      商品 + 秒杀商品 + StockService(预扣)  → P3 stock-service
-├── cart/       购物车                → P3 order-service
-├── order/      订单/明细/秒杀订单/超时回滚 → P3 order-service
-├── seckill/    秒杀下单编排          → P3 order-service
-├── merchant/   商家中心              → P3 stock-service
-└── admin/      管理员审核/管理       → P3 admin-service
+├── common/     Result/BizException/全局异常/Constants/RedisUtil/TokenService/UserContext → common-service
+├── config/     RedisConfig/WebConfig/认证拦截器/DataInitializer/MyMetaObjectHandler        → common-service
+├── user/       用户 + 商家申请                                  → user-service
+├── admin/      管理员审核/管理（商品/订单/秒杀审核经 Feign）       → user-service
+├── merchant/   商家中心（商品/秒杀商品管理经 Feign）              → user-service
+├── goods/      商品 + 秒杀商品 + 库存                            → goods-order-service / seckill-service
+├── cart/       购物车                                           → goods-order-service
+├── order/      订单/明细（正常） + 秒杀订单                       → goods-order-service / seckill-service
+└── seckill/    秒杀下单编排                                      → seckill-service
 ```
 
 ## API 一览
@@ -105,8 +126,12 @@ $env:Path = 'E:\app\config\java21\bin;E:\app\config\Maven\Maven\apache-maven-3.9
 cd monomer_seckill_backend\monomer_seckill_backend
 mvn spring-boot:run            # http://localhost:7099
 
+# 单体前端（调 7099）
 cd monomer_seckill_fromend
-npx serve . -l 3000            # http://localhost:3000
+npx serve monomer -l 3000      # http://localhost:3000
+
+# 微服务前端（按前缀路由 7001/7002/7003）
+npx serve cloud -l 3001        # http://localhost:3001
 ```
 
 ## P2 任务完成清单
