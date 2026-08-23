@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.example.seckill</groupId>
+        <artifactId>monomer_seckill_backend_cloud</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>seckill-common</artifactId>
+    <name>seckill-common</name>
+    <description>公共模块：统一响应体/异常/常量/Redis 工具/认证拦截器/共享实体与 Mapper/共享秒杀库存服务</description>
+
+    <dependencies>
+        <!-- Web（统一响应体、全局异常、拦截器、CORS 所需） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Redis（TokenService / RedisUtil / RedisConfig 所需） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- 事务异常 DuplicateKeyException 所在模块，保证无 DB 的服务也能加载 GlobalExceptionHandler -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+        </dependency>
+
+        <!-- MyBatis-Plus：仅本模块编译 Mapper 用，标记 optional 避免强传给无 DB 的 seckill-service -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- MySQL 驱动：由具体服务按需引入 -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

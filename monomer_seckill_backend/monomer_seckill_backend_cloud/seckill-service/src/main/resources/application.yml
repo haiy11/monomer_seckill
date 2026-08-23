@@ -1,0 +1,21 @@
+server:
+  port: 7003
+
+spring:
+  application:
+    name: seckill-service
+  # 仅使用 Redis 做 token 校验，不直接访问数据库（商品/库存/订单均走 goods-order-service）
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 3s
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
+logging:
+  level:
+    com.example.seckill: debug

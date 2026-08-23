@@ -1,0 +1,47 @@
+server:
+  port: 7002
+
+spring:
+  application:
+    name: goods-order-service
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # createDatabaseIfNotExist=true：首次启动自动创建 monomer_seckill 数据库（四个服务共享）
+    url: jdbc:mysql://localhost:3307/monomer_seckill?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
+    username: root
+    password: 123456hy
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 3s
+  sql:
+    init:
+      # 建表/种子数据统一由本服务负责（其余服务 mode=never，避免重复 DROP/建表冲突）
+      mode: always
+      encoding: UTF-8
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:data.sql
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+
+# 秒杀业务配置（订单超时回滚）
+seckill:
+  order-timeout-minutes: 15
+  order-timeout-scan-ms: 30000
+
+logging:
+  level:
+    com.example.seckill: debug
