@@ -8,6 +8,7 @@ import org.example.monomer_seckill_backend.goods.entity.Goods;
 import org.example.monomer_seckill_backend.goods.entity.SeckillGoods;
 import org.example.monomer_seckill_backend.goods.mapper.GoodsMapper;
 import org.example.monomer_seckill_backend.goods.mapper.SeckillGoodsMapper;
+import org.example.monomer_seckill_backend.goods.service.SeckillGoodsService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -27,10 +28,13 @@ public class MerchantService {
 
     private final GoodsMapper goodsMapper;
     private final SeckillGoodsMapper seckillGoodsMapper;
+    private final SeckillGoodsService seckillGoodsService;
 
-    public MerchantService(GoodsMapper goodsMapper, SeckillGoodsMapper seckillGoodsMapper) {
+    public MerchantService(GoodsMapper goodsMapper, SeckillGoodsMapper seckillGoodsMapper,
+                           SeckillGoodsService seckillGoodsService) {
         this.goodsMapper = goodsMapper;
         this.seckillGoodsMapper = seckillGoodsMapper;
+        this.seckillGoodsService = seckillGoodsService;
     }
 
     /**
@@ -121,6 +125,7 @@ public class MerchantService {
             sg.setStatus(Constants.SECKILL_STATUS_PENDING);
         }
         seckillGoodsMapper.updateById(sg);
+        seckillGoodsService.evictCache(seckillGoodsId);
         return sg;
     }
 

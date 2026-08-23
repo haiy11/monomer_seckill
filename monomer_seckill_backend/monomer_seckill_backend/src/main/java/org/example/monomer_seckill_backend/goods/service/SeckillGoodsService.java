@@ -1,8 +1,12 @@
 package org.example.monomer_seckill_backend.goods.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.example.monomer_seckill_backend.common.BizException;
 import org.example.monomer_seckill_backend.common.Constants;
+import org.example.monomer_seckill_backend.common.RedisUtil;
 import org.example.monomer_seckill_backend.goods.entity.SeckillGoods;
 import org.example.monomer_seckill_backend.goods.mapper.SeckillGoodsMapper;
 import org.example.monomer_seckill_backend.goods.vo.SeckillGoodsVO;
@@ -10,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 秒杀商品服务：查询、状态维护。
@@ -17,13 +22,18 @@ import java.util.List;
  * @author haiy
  * @date 2026/08/17
  */
+@Slf4j
 @Service
 public class SeckillGoodsService {
 
     private final SeckillGoodsMapper seckillGoodsMapper;
+    private final RedisUtil redisUtil;
+    private final ObjectMapper objectMapper;
 
-    public SeckillGoodsService(SeckillGoodsMapper seckillGoodsMapper) {
+    public SeckillGoodsService(SeckillGoodsMapper seckillGoodsMapper, RedisUtil redisUtil, ObjectMapper objectMapper) {
         this.seckillGoodsMapper = seckillGoodsMapper;
+        this.redisUtil = redisUtil;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -49,6 +59,72 @@ public class SeckillGoodsService {
      */
     public SeckillGoods getById(Long id) {
         return id == null ? null : seckillGoodsMapper.selectById(id);
+    }
+
+    /**
+     * 按 ID 查询秒杀商品实体（带 Redis 缓存）：优先读缓存，未命中再查库并回填缓存。
+     *
+     * <p>对不存在的商品写入空值缓存（短过期），防止缓存穿透。</p>
+     */
+    public SeckillGoods getByIdCached(Long id) {
+        if (id == null) {
+            return null;
+        }
+        String key = goodsCacheKey(id);
+        String json = redisUtil.get(key);
+        if (json != null) {
+            // 命中空值缓存：商品确实不存在，直接返回，不再查库
+            if (Constants.GOODS_CACHE_NULL.equals(json)) {
+                return null;
+            }
+            SeckillGoods cached = parseGoods(json);
+            if (cached != null) {
+                return cached;
+            }
+            // 缓存数据损坏，删除后回源查库
+            redisUtil.delete(key);
+        }
+        SeckillGoods sg = seckillGoodsMapper.selectById(id);
+        if (sg != null) {
+            String value = toJson(sg);
+            if (value != null) {
+                redisUtil.set(key, value, Constants.GOODS_CACHE_TTL_SECONDS, TimeUnit.SECONDS);
+            }
+        } else {
+            redisUtil.set(key, Constants.GOODS_CACHE_NULL, Constants.GOODS_NULL_TTL_SECONDS, TimeUnit.SECONDS);
+        }
+        return sg;
+    }
+
+    /**
+     * 删除秒杀商品缓存（商品信息变更后调用，保证缓存与数据库一致）。
+     */
+    public void evictCache(Long id) {
+        if (id != null) {
+            redisUtil.delete(goodsCacheKey(id));
+        }
+    }
+
+    private String goodsCacheKey(Long id) {
+        return Constants.GOODS_KEY_PREFIX + id;
+    }
+
+    private SeckillGoods parseGoods(String json) {
+        try {
+            return objectMapper.readValue(json, SeckillGoods.class);
+        } catch (JsonProcessingException e) {
+            log.warn("秒杀商品缓存反序列化失败，将回源查库，json={}", json, e);
+            return null;
+        }
+    }
+
+    private String toJson(SeckillGoods sg) {
+        try {
+            return objectMapper.writeValueAsString(sg);
+        } catch (JsonProcessingException e) {
+            log.error("秒杀商品缓存序列化失败，本次不写缓存，id={}", sg.getId(), e);
+            return null;
+        }
     }
 
     /**
@@ -106,7 +182,7 @@ public class SeckillGoodsService {
      * 校验秒杀商品是否处于「已上架且可购买」状态（供秒杀下单调用）。
      */
     public SeckillGoods requirePurchasable(Long id) {
-        SeckillGoods sg = seckillGoodsMapper.selectById(id);
+        SeckillGoods sg = getByIdCached(id);
         if (sg == null) {
             throw new BizException("秒杀商品不存在");
         }

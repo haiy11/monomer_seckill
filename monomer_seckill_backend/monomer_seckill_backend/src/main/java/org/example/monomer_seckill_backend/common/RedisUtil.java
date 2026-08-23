@@ -55,6 +55,13 @@ public class RedisUtil {
     }
 
     /**
+     * 仅当 key 不存在时写入，并设置过期时间（常用于空值缓存等需要自动过期的场景）。
+     */
+    public Boolean setIfAbsent(String key, String value, long timeout, TimeUnit unit) {
+        return stringRedisTemplate.opsForValue().setIfAbsent(key, value, timeout, unit);
+    }
+
+    /**
      * 自增 1。
      */
     public Long increment(String key) {

@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 秒杀库存服务（Redis 预扣库存核心）。
@@ -70,6 +71,10 @@ public class StockService {
         SeckillGoods sg = seckillGoodsMapper.selectById(seckillGoodsId);
         if (sg != null) {
             redisUtil.setIfAbsent(stockKey, String.valueOf(sg.getSeckillStock()));
+        } else {
+            // 空值缓存：商品不存在时写入占位值并设置短过期时间，防止缓存穿透
+            redisUtil.setIfAbsent(stockKey, Constants.STOCK_NULL_VALUE,
+                    Constants.STOCK_NULL_TTL_SECONDS, TimeUnit.SECONDS);
         }
     }
 

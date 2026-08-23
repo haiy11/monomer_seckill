@@ -8,8 +8,11 @@
 --
 -- 说明：P2 秒杀以 seckill_goods（秒杀商品）为粒度，Redis 预扣库存。
 --   ⚠️ 关键：Redis 库存/已购集合是本轮的「事实来源」，SQL 只能操作 MySQL，无法直接操作 Redis。
---   所以「重置」必须分两步：先执行下面的 DB 重置 SQL，再调用管理接口把 Redis 同步成一致状态
---   （接口会按 DB 当前 seckill_stock 预载 Redis，并清空已购用户集合）。
+--   所以「重置」必须分两步：先执行下面的 DB 重置 SQL，再把 Redis 同步成一致状态。
+--   Redis 里需要处理两个 key，缺一不可：
+--     1) 库存 key：seckill:stock:1      —— 重置为 1000（与 DB 一致）
+--     2) 已购用户集合：seckill:users:1   —— 整体删除！否则复用同一批 token 时，
+--        上一轮抢到库存的用户会被 Lua 误判为「重复抢购」，但 DB 订单已清空，造成数据不一致。
 -- ============================================================
 
 -- ============================================================
@@ -20,8 +23,9 @@
 DELETE FROM seckill_order;
 UPDATE seckill_goods SET seckill_stock = 1000 WHERE id = 1;
 
--- 以上 SQL 只重置了 MySQL。还必须把 Redis 同步重置（SQL 做不到，二选一）：
+-- 以上 SQL 只重置了 MySQL。还必须把 Redis 同步重置（SQL 做不到），且库存 key 与已购集合都要处理：
 --   方式一（推荐，无需重启）：用管理员 token 调用管理接口
+--     （接口内部会同时重置 seckill:stock:1 为 DB 当前库存，并清空 seckill:users:1 已购集合）
 --     1) 登录拿管理员 token（默认账号 admin/admin123）：
 --        curl -X POST http://localhost:7099/api/admin/login \
 --             -H "Content-Type: application/json" \
@@ -30,7 +34,10 @@ UPDATE seckill_goods SET seckill_stock = 1000 WHERE id = 1;
 --     2) 重置秒杀商品1的 Redis 库存并清空已购集合 seckill:users:1：
 --        curl -X POST http://localhost:7099/api/admin/stock/reset/1 \
 --             -H "Authorization: Bearer <管理员token>"
---   方式二：重启后端（启动时 DataInitializer 会自动预载全部秒杀库存到 Redis）。
+--   方式二：重启后端（启动时 DataInitializer 会自动预载全部秒杀库存到 Redis，并清空已购集合）。
+--   方式三：直接用 redis-cli（两条都要执行，缺一不可）：
+--        redis-cli SET seckill:stock:1 1000
+--        redis-cli DEL seckill:users:1
 
 -- ============================================================
 -- 【压测后】逐项校验（核心）
@@ -85,11 +92,15 @@ LIMIT 5;
 
 -- ============================================================
 -- 【压测后】重置：把环境恢复到干净状态，方便下一轮压测
--- （与【0】完全一致：先重置 DB，再调用管理接口重置 Redis）
+-- （与【0】完全一致：先重置 DB，再重置 Redis 的库存 key 与已购用户集合）
 -- ============================================================
 DELETE FROM seckill_order;
 UPDATE seckill_goods SET seckill_stock = 1000 WHERE id = 1;
 
--- 再执行一次 Redis 重置（SQL 做不到）：
---   curl -X POST http://localhost:7099/api/admin/stock/reset/1 \
---        -H "Authorization: Bearer <管理员token>"
+-- 再执行一次 Redis 重置（SQL 做不到），库存与已购集合都要处理：
+--   方式一：管理接口（推荐，内部同时重置库存并清空已购集合）
+--     curl -X POST http://localhost:7099/api/admin/stock/reset/1 \
+--          -H "Authorization: Bearer <管理员token>"
+--   方式二：redis-cli（两条都要执行）
+--     redis-cli SET seckill:stock:1 1000
+--     redis-cli DEL seckill:users:1

@@ -4,6 +4,7 @@ import org.example.monomer_seckill_backend.common.Constants;
 import org.example.monomer_seckill_backend.goods.entity.Goods;
 import org.example.monomer_seckill_backend.goods.mapper.GoodsMapper;
 import org.example.monomer_seckill_backend.goods.mapper.SeckillGoodsMapper;
+import org.example.monomer_seckill_backend.goods.service.SeckillGoodsService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -21,7 +22,8 @@ class MerchantServiceTest {
     void addGoods_defaultsToPendingAndOwner() {
         GoodsMapper goodsMapper = Mockito.mock(GoodsMapper.class);
         SeckillGoodsMapper seckillGoodsMapper = Mockito.mock(SeckillGoodsMapper.class);
-        MerchantService service = new MerchantService(goodsMapper, seckillGoodsMapper);
+        SeckillGoodsService seckillGoodsService = Mockito.mock(SeckillGoodsService.class);
+        MerchantService service = new MerchantService(goodsMapper, seckillGoodsMapper, seckillGoodsService);
 
         Goods goods = new Goods();
         goods.setName("测试商品");

@@ -164,6 +164,7 @@ public class AdminService {
         SeckillGoods sg = requirePendingSeckillGoods(id);
         sg.setStatus(Constants.SECKILL_STATUS_ON);
         seckillGoodsMapper.updateById(sg);
+        seckillGoodsService.evictCache(id);
         stockService.preload(id);
     }
 
@@ -174,6 +175,7 @@ public class AdminService {
         SeckillGoods sg = requirePendingSeckillGoods(id);
         sg.setStatus(Constants.SECKILL_STATUS_REJECTED);
         seckillGoodsMapper.updateById(sg);
+        seckillGoodsService.evictCache(id);
     }
 
     private SeckillGoods requirePendingSeckillGoods(Long id) {

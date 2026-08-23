@@ -60,6 +60,24 @@ public final class Constants {
     /** Redis 已购用户集合 key 前缀：seckill:users:{seckillGoodsId} */
     public static final String USERS_KEY_PREFIX = "seckill:users:";
 
+    /** Redis 秒杀商品信息缓存 key 前缀，拼 seckillGoodsId：seckill:goods:{seckillGoodsId} */
+    public static final String GOODS_KEY_PREFIX = "seckill:goods:";
+
+    /** 秒杀商品信息缓存有效期（秒） */
+    public static final long GOODS_CACHE_TTL_SECONDS = 1800;
+
+    /** 秒杀商品信息缓存空值占位符：表示商品不存在，防止缓存穿透 */
+    public static final String GOODS_CACHE_NULL = "__NULL__";
+
+    /** 秒杀商品信息空值缓存有效期（秒） */
+    public static final long GOODS_NULL_TTL_SECONDS = 60;
+
+    /** 库存空值缓存占位值：表示秒杀商品不存在（对扣库存脚本而言等价于无库存） */
+    public static final String STOCK_NULL_VALUE = "0";
+
+    /** 库存空值缓存有效期（秒）：不存在的商品短时间缓存，避免每次请求穿透到数据库 */
+    public static final long STOCK_NULL_TTL_SECONDS = 60;
+
     /** 登录 token key 前缀：mall:token:{token} */
     public static final String TOKEN_KEY_PREFIX = "mall:token:";
 
