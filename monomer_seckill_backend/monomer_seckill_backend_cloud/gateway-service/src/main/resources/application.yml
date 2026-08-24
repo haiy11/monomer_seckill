@@ -1,0 +1,44 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+    gateway:
+      # 全局跨域：前端直接访问网关时放行（与各服务内 CorsConfig 保持一致）
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+      # 路由规则：按 API 前缀转发到对应服务（服务名 + 负载均衡 lb://）
+      # 注意：/internal/** 为服务间 Feign 内部接口，不对外暴露，故不配置路由
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**,/api/admin/**,/api/merchant/**
+        - id: goods-order-service
+          uri: lb://goods-order-service
+          predicates:
+            - Path=/api/goods/**,/api/cart/**,/api/order/**
+        - id: seckill-service
+          uri: lb://seckill-service
+          predicates:
+            - Path=/api/seckill/**,/api/seckill-goods/**
+
+# JWT 鉴权配置（P4）：与各服务保持同一密钥，否则网关鉴权结果与下游不一致
+jwt:
+  secret: seckill-cloud-jwt-secret-change-me-in-production-123456
+  expire-minutes: 120
+
+logging:
+  level:
+    com.example.seckill: debug

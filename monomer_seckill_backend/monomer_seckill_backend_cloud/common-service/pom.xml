@@ -21,10 +21,26 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Redis（TokenService / RedisUtil / RedisConfig 所需） -->
+        <!-- Redis（RedisUtil / RedisConfig 所需，TokenService 已改用 JWT 不再依赖 Redis） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- JJWT：TokenService 签发/校验 JWT（P4） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <scope>runtime</scope>
         </dependency>
 
         <!-- 事务异常 DuplicateKeyException 所在模块，保证无 DB 的服务也能加载 GlobalExceptionHandler -->

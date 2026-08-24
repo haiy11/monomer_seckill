@@ -72,7 +72,7 @@ public class UserService {
         if (user == null || !user.getPassword().equals(md5(request.getPassword()))) {
             throw new BizException("用户名或密码错误");
         }
-        String token = tokenService.createToken(user.getId());
+        String token = tokenService.createToken(user.getId(), user.getRole());
         LoginVO vo = new LoginVO();
         vo.setToken(token);
         vo.setUser(toVO(user));

@@ -23,6 +23,7 @@
         <module>user-service</module>
         <module>goods-order-service</module>
         <module>seckill-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <properties>
@@ -31,6 +32,7 @@
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <common-service.version>1.0.0</common-service.version>
+        <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <!-- 统一依赖版本仲裁（子模块在此读取版本，依赖仍需在子模块显式声明） -->
@@ -63,6 +65,22 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- JJWT：JWT 签发与校验（P4 网关鉴权 + 各服务防御性校验共用） -->
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jjwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jjwt.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

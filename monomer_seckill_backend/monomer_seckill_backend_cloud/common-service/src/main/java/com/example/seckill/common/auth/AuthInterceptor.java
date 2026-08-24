@@ -33,12 +33,13 @@ public class AuthInterceptor implements HandlerInterceptor {
         if (CorsUtils.isPreFlightRequest(request)) {
             return true;
         }
-        Long userId = tokenService.getUserId(extractToken(request));
+        String token = extractToken(request);
+        Long userId = tokenService.getUserId(token);
         if (userId == null) {
             writeError(response, 401, "未登录或登录已过期");
             return false;
         }
-        UserContext.set(userId, null);
+        UserContext.set(userId, tokenService.getRole(token));
         return true;
     }
 

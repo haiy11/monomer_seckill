@@ -1,16 +1,24 @@
 package com.example.seckill.common.auth;
 
-import org.springframework.data.redis.core.StringRedisTemplate;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.util.UUID;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 /**
- * 登录 token 服务。
+ * 登录 token 服务（P4 起由 Redis 会话 token 改为无状态 JWT）。
  *
- * <p>P3 阶段用「Redis 存储 token → userId」的方式做轻量会话，
- * 为 P4 网关 JWT 鉴权打基础（届时替换为 JWT 即可，接口语义不变）。</p>
+ * <p>JWT 载荷约定：{@code sub}=用户ID、{@code role}=角色（0 普通用户 / 1 商家 / 2 管理员）、
+ * {@code iat}/{@code exp}=签发/过期时间。签名算法固定为 HS256，密钥取自配置项
+ * {@code jwt.secret}（长度须 ≥ 32 字节）。</p>
+ *
+ * <p>JWT 无状态：签发后不再写入 Redis，校验只需本地验签 + 过期校验，天然适合网关集中鉴权；
+ * 各下游服务仍通过本类做防御性校验，与网关共享同一密钥。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -18,32 +26,39 @@ import java.util.UUID;
 @Service
 public class TokenService {
 
-    /** 登录 token key 前缀：mall:token:{token} */
-    private static final String TOKEN_KEY_PREFIX = "mall:token:";
+    /** JWT 载荷：角色字段名 */
+    public static final String CLAIM_ROLE = "role";
 
-    /** 登录 token 有效期（分钟） */
-    private static final long TOKEN_TTL_MINUTES = 30;
+    /** HMAC 签名密钥（由 jwt.secret 生成） */
+    private final SecretKey secretKey;
 
-    /** Redis 字符串模板 */
-    private final StringRedisTemplate stringRedisTemplate;
+    /** token 有效期（分钟） */
+    private final long expireMinutes;
 
-    public TokenService(StringRedisTemplate stringRedisTemplate) {
-        this.stringRedisTemplate = stringRedisTemplate;
+    public TokenService(@Value("${jwt.secret}") String secret,
+                        @Value("${jwt.expire-minutes:120}") long expireMinutes) {
+        // HS256 要求密钥 ≥ 256 位（32 字节），jwt.secret 必须满足
+        this.secretKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.expireMinutes = expireMinutes;
     }
 
     /**
-     * 为用户签发 token，并写入 Redis（带过期时间）。
+     * 为用户签发 JWT。
      *
      * @param userId 用户ID
-     * @return token 字符串
+     * @param role   用户角色（0 普通用户 / 1 商家 / 2 管理员）
+     * @return JWT 字符串
      */
-    public String createToken(Long userId) {
-        String token = UUID.randomUUID().toString().replace("-", "");
-        stringRedisTemplate.opsForValue().set(
-                TOKEN_KEY_PREFIX + token,
-                String.valueOf(userId),
-                Duration.ofMinutes(TOKEN_TTL_MINUTES));
-        return token;
+    public String createToken(Long userId, Integer role) {
+        Date now = new Date();
+        Date expiry = new Date(now.getTime() + expireMinutes * 60_000L);
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim(CLAIM_ROLE, role)
+                .issuedAt(now)
+                .expiration(expiry)
+                .signWith(secretKey, Jwts.SIG.HS256)
+                .compact();
     }
 
     /**
@@ -53,19 +68,43 @@ public class TokenService {
      * @return userId；token 无效或已过期时返回 null
      */
     public Long getUserId(String token) {
-        if (token == null || token.isBlank()) {
+        Claims claims = parse(token);
+        if (claims == null) {
             return null;
         }
-        String value = stringRedisTemplate.opsForValue().get(TOKEN_KEY_PREFIX + token);
-        return value == null ? null : Long.valueOf(value);
+        String subject = claims.getSubject();
+        return subject == null ? null : Long.valueOf(subject);
     }
 
     /**
-     * 删除 token（登出 / 失效）。
+     * 根据 token 解析角色。
+     *
+     * @param token token 字符串（不带前缀）
+     * @return 角色值；token 无效或已过期时返回 null
      */
-    public void deleteToken(String token) {
-        if (token != null && !token.isBlank()) {
-            stringRedisTemplate.delete(TOKEN_KEY_PREFIX + token);
+    public Integer getRole(String token) {
+        Claims claims = parse(token);
+        return claims == null ? null : claims.get(CLAIM_ROLE, Integer.class);
+    }
+
+    /**
+     * 解析并校验 JWT：验签 + 过期校验。
+     *
+     * @return 有效时返回 Claims，否则返回 null
+     */
+    private Claims parse(String token) {
+        if (token == null || token.isBlank()) {
+            return null;
+        }
+        try {
+            return Jwts.parser()
+                    .verifyWith(secretKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+        } catch (Exception e) {
+            // 签名不匹配 / 已过期 / 格式非法统一按未登录处理，不向外暴露细节
+            return null;
         }
     }
 }

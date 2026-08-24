@@ -1,6 +1,6 @@
 # monomer_seckill_backend_cloud
 
-秒杀项目 **P3 阶段**：单体 → 微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用。
+秒杀项目 **P4 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）。
 
 原单体代码保留在 `../monomer_seckill_backend/`，未做任何改动；本目录是从单体拆分出的微服务工程。
 
@@ -12,6 +12,7 @@
 | `user-service` | `user-service` / **7001** | 用户 + 管理员 + 商家（人员相关）。持有 `mall_user`、`merchant_apply`；商品/订单/秒杀商品的审核与管理经 **Feign** 调对应服务 |
 | `goods-order-service` | `goods-order-service` / **7002** | 商品 + 购物车 + 正常订单（业务紧密）。持有 `goods`、`cart_item`、`mall_order`、`order_item`，并暴露内部审核/管理接口 |
 | `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、`seckill_order`、Redis 预扣库存、Lua 脚本、秒杀商品查询、秒杀订单全生命周期，并暴露内部审核/管理接口 |
+| `gateway-service` | `gateway-service` / **8080** | 统一流量入口（P4）。Spring Cloud Gateway 按 API 前缀路由到上述三个服务，全局过滤器解析 JWT 完成鉴权与角色校验；`/internal/**` 不对外暴露 |
 
 ### 设计原则
 
@@ -41,44 +42,55 @@ user-service (7001)
 - `SeckillClient`（`@FeignClient(name="seckill-service")`）调用 `/internal/admin/**`、`/internal/merchant/**`。
 - 内部接口统一返回 `Result<T>`，避免把「商品不存在/已处理」等业务语义映射成 HTTP 5xx，导致 Feign 侧无法区分。
 
-## 三、接口分布（P4 网关接入前，各服务端口直连）
+## 三、接口分布（P4 起统一经网关 :8080 访问）
 
-| 方法 | 路径 | 所在服务 |
-|------|------|---------|
-| POST/GET | `/api/user/**` | user-service :7001 |
-| POST/GET | `/api/admin/**` | user-service :7001 |
-| GET/POST/PUT | `/api/merchant/**` | user-service :7001 |
-| GET | `/api/goods` `/api/goods/{id}` | goods-order-service :7002 |
-| GET/POST/PUT/DELETE | `/api/cart/**` | goods-order-service :7002 |
-| GET/POST | `/api/order/**`（正常订单） | goods-order-service :7002 |
-| GET | `/api/seckill-goods` `/api/seckill-goods/{id}` | seckill-service :7003 |
-| POST | `/api/seckill/{goodsId}` | seckill-service :7003 |
-| GET/POST | `/api/seckill/order/**`（秒杀订单） | seckill-service :7003 |
+所有对外的 `/api/**` 请求统一打到 **`gateway-service :8080`**，由网关按前缀转发：
+
+| 方法 | 路径 | 转发目标 | 是否需登录 |
+|------|------|---------|-----------|
+| POST | `/api/user/register` `/api/user/login` | user-service | 否 |
+| GET | `/api/user/info` `/api/user/apply-merchant` | user-service | 是 |
+| POST | `/api/admin/login` | user-service | 否 |
+| POST/GET | `/api/admin/**`（登录除外） | user-service | 是（管理员） |
+| GET/POST/PUT | `/api/merchant/**` | user-service | 是（商家） |
+| GET | `/api/goods` `/api/goods/{id}` | goods-order-service | 否 |
+| GET/POST/PUT/DELETE | `/api/cart/**` | goods-order-service | 是 |
+| GET/POST | `/api/order/**`（正常订单） | goods-order-service | 是 |
+| GET | `/api/seckill-goods` `/api/seckill-goods/{id}` | seckill-service | 否 |
+| POST | `/api/seckill/{goodsId}` | seckill-service | 是 |
+| GET/POST | `/api/seckill/order/**`（秒杀订单） | seckill-service | 是 |
+
+> `/internal/**` 为服务间 Feign 内部接口，网关不配置路由、过滤器直接拒绝，外部不可达。
+> 各服务端口（7001/7002/7003）仍保留直连能力并各自做防御性 JWT 校验，但对外统一走 8080。
 
 ## 四、启动步骤
 
 1. 保证中间件就绪：MySQL(`localhost:3307`)、Redis(`localhost:6379`)、Nacos(`localhost:8848`)。
 2. 切换 JDK 21 + Maven 3.9.10（见 `seckill-build-run` skill）。
-3. **先启动 `goods-order-service`**（负责建表 + 用户/商品种子数据），再启动 `seckill-service`（秒杀商品种子 + 库存预载）、`user-service`。
+3. **先启动 `goods-order-service`**（负责建表 + 用户/商品种子数据），再启动 `seckill-service`（秒杀商品种子 + 库存预载）、`user-service`，最后启动 `gateway-service`（统一入口）。
 
 ```powershell
 # 根目录一键打包
 mvn -DskipTests clean package
 
-# 分别启动
+# 分别启动（网关最后启动）
 cd goods-order-service ; mvn spring-boot:run
 cd seckill-service     ; mvn spring-boot:run
 cd user-service        ; mvn spring-boot:run
+cd gateway-service     ; mvn spring-boot:run
 ```
 
-## 五、设计说明（P3 阶段取舍）
+启动后统一入口为 `http://localhost:8080`，各服务直连端口仍为 7001/7002/7003。
+
+## 五、设计说明（P3/P4 阶段取舍）
 
 - **共享单个 MySQL 库**（用户选择）：`goods-order-service` 作为数据属主负责 `schema.sql`（建全部表）+「用户/正常商品」种子数据；`seckill-service` 负责「秒杀商品」种子数据；其余服务 `spring.sql.init.mode=never`。
 - **跨服务访问走 Feign**：管理员/商家的审核与管理操作经 OpenFeign 调数据属主服务，user-service 不再持有商品/订单的 Mapper 副本，只在本地保留 Feign 响应所需的 DTO（少量契约重复）。
 - **秒杀域完整下沉**：秒杀商品、Redis 预扣库存、秒杀订单的创建/支付/取消/超时全部归 seckill-service，保证高并发路径与其它服务隔离。
+- **JWT 无状态鉴权（P4）**：登录时由 user-service 用 `common-service` 的 `TokenService` 签发 JWT（载荷含 `sub`=userId、`role`），网关全局过滤器验签 + 过期校验 + 角色校验；下游各服务仍用同一密钥做防御性校验（可独立直连不被绕过），密钥经 `jwt.secret` 统一配置，后续 P7 迁移到 Nacos Config 集中管理。
 
 ## 六、后续阶段衔接
 
-- P4：新增 `gateway-service` 统一入口 + JWT 鉴权，收敛上面的多端口直连。
-- P7：把 `application.yml` 迁移到 Nacos Config。
+- P5：引入 Sentinel 对网关限流、对 seckill-service 熔断降级。
+- P7：把 `application.yml`（含 `jwt.secret`）迁移到 Nacos Config。
 - P8：秒杀下单改 MQ 异步削峰。

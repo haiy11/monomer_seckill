@@ -45,3 +45,8 @@ seckill:
 logging:
   level:
     com.example.seckill: debug
+
+# JWT 鉴权配置（P4）：各服务与网关必须使用同一密钥，否则无法互认 token
+jwt:
+  secret: seckill-cloud-jwt-secret-change-me-in-production-123456
+  expire-minutes: 120
