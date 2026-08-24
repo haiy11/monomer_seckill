@@ -4,11 +4,12 @@
 
 后端有两套，互不影响：
 - 单体版（P2）：`monomer_seckill_backend/monomer_seckill_backend/`（两层目录，端口 7099）
-- 微服务版（P3）：`monomer_seckill_backend/monomer_seckill_backend_cloud/`（父 pom + common-service / user-service / goods-order-service / seckill-service，端口 7001/7002/7003）
+- 微服务版（P3/P4）：`monomer_seckill_backend/monomer_seckill_backend_cloud/`（父 pom + common-service / user-service / goods-order-service / seckill-service / gateway-service，业务端口 7001/7002/7003，网关统一入口 8080）
 
 前端在 `monomer_seckill_fromend/`：
 - 单体版：`monomer_seckill_fromend/monomer/index.html`（调 7099）
 - 微服务版：`monomer_seckill_fromend/cloud/index.html`（按 API 前缀路由到 7001/7002/7003）
+- 网关版：`monomer_seckill_fromend/unified_gateway/index.html`（统一调 8080，经网关转发）
 
 详细说明已拆分为 Agent Skills（`.dsh/skills/<name>/SKILL.md`），**按需加载，不要一次性全读**。先判断当前任务属于哪一类，只加载对应的那一个。
 
@@ -31,5 +32,5 @@
 补充资料（非 skill，需要时再读）：
 - 压测教程与数据校验：`docs/wrk-压测教程.md`、`docs/post.lua`、`docs/check-data.sql`
 - 完整路线图：`monomer_seckill_plan.md`
-- 微服务知识点笔记：`knowledge/P3-微服务知识.md`
+- 微服务知识点笔记：`knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`
 - 微服务工程说明：`monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`
