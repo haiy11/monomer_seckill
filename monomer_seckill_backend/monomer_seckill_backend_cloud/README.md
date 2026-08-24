@@ -8,11 +8,11 @@
 
 | 模块 | 服务名 / 端口 | 职责 |
 |------|--------------|------|
-| `common-service` | （公共库，不注册） | **仅系统级基础设施**：统一响应体、异常、用户上下文、认证（Token/AuthInterceptor）、Redis 工具、CORS、MyBatis 字段填充。不含任何业务领域代码 |
+| `common-service` | （公共库，不注册） | **仅系统级基础设施**：统一响应体、异常、用户上下文、认证（Token/AuthInterceptor）、Redis 工具、MyBatis 字段填充（CORS 已上移至网关统一处理）。不含任何业务领域代码 |
 | `user-service` | `user-service` / **7001** | 用户 + 管理员 + 商家（人员相关）。持有 `mall_user`、`merchant_apply`；商品/订单/秒杀商品的审核与管理经 **Feign** 调对应服务 |
 | `goods-order-service` | `goods-order-service` / **7002** | 商品 + 购物车 + 正常订单（业务紧密）。持有 `goods`、`cart_item`、`mall_order`、`order_item`，并暴露内部审核/管理接口 |
 | `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、`seckill_order`、Redis 预扣库存、Lua 脚本、秒杀商品查询、秒杀订单全生命周期，并暴露内部审核/管理接口 |
-| `gateway-service` | `gateway-service` / **8080** | 统一流量入口（P4）。Spring Cloud Gateway 按 API 前缀路由到上述三个服务，全局过滤器解析 JWT 完成鉴权与角色校验；`/internal/**` 不对外暴露 |
+| `gateway-service` | `gateway-service` / **8080** | 统一流量入口（P4）。Spring Cloud Gateway 按 API 前缀路由到上述三个服务，统一处理跨域（CORS）与 JWT 鉴权（全局过滤器验签 + 角色校验）；`/internal/**` 不对外暴露 |
 
 ### 设计原则
 

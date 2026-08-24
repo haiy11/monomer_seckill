@@ -9,7 +9,7 @@ spring:
       discovery:
         server-addr: localhost:8848
     gateway:
-      # 全局跨域：前端直接访问网关时放行（与各服务内 CorsConfig 保持一致）
+      # 全局跨域：跨域统一由网关处理（下游各服务不再各自配置 CORS，避免重复 Access-Control-Allow-* 头导致浏览器 Failed to fetch）
       globalcors:
         cors-configurations:
           '[/**]':
