@@ -1,7 +1,7 @@
--- post.lua：wrk 压测秒杀接口用的 Lua 脚本
+-- P2-post.lua：wrk 压测秒杀接口用的 Lua 脚本
 --
 -- 用法（先准备 tokens.txt，每行一个登录 token）：
---   wrk -t10 -c200 -d30s --latency -s post.lua http://localhost:7099
+--   wrk -t10 -c200 -d30s --latency -s P2-post.lua http://localhost:7099
 --
 -- 说明：
 --   P2 秒杀接口 POST /api/seckill/{seckillGoodsId} 需要登录，

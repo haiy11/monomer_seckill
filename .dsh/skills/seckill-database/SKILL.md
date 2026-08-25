@@ -40,4 +40,4 @@ description: "建表、改表结构、写或改 SQL、查询数据、理解表�
 
 ## 压测后数据校验
 
-校验 SQL 见 `docs/check-data.sql`（校验不超卖、不多卖、不重复下单）。
+校验 SQL 见 `docs/P2-check-data.sql`（校验不超卖、不多卖、不重复下单）。

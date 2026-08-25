@@ -99,7 +99,7 @@ cd gateway-service     ; mvn spring-boot:run
 | seckill-service | `seckill`（第 0 参数 = 商品ID） | 热点参数限流 | 默认单商品 QPS=10，热点商品 id=1 收紧到 QPS=5 |
 | seckill-service | `seckill-demo`（演示端点） | 熔断：慢调用比例 > 20% | `GET /api/seckill/demo/slow`，用于人工观察熔断触发/恢复 |
 
-规则采用「代码程序化加载」：网关见 `GatewaySentinelConfig`，秒杀服务见 `SentinelConfig`，不依赖 Sentinel Dashboard 也能生效。Dashboard 作为可选的监控可视化，启动后配置 `spring.cloud.sentinel.transport.dashboard` 即可接入。详细原理与验证步骤见 `knowledge/P5-限流熔断知识.md`。
+规则采用「代码程序化加载」：网关见 `GatewaySentinelConfig`，秒杀服务见 `SentinelConfig`，不依赖 Sentinel Dashboard 也能生效。Dashboard 作为可选的监控可视化，启动后配置 `spring.cloud.sentinel.transport.dashboard` 即可接入。详细原理与验证步骤见 `knowledge/P5-限流熔断知识.md`；JMeter 压测实操见 `docs/P5-JMeter压测.md`。
 
 ## 七、后续阶段衔接
 

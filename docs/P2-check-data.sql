@@ -3,7 +3,7 @@
 --
 -- 执行方式（二选一）：
 --  1) WSL2 命令行：
---     docker exec -i mysql mysql -uroot -p123456hy --default-character-set=utf8mb4 monomer_seckill < /mnt/e/items/natherItems/monomer_seckill/docs/check-data.sql
+--     docker exec -i mysql mysql -uroot -p123456hy --default-character-set=utf8mb4 monomer_seckill < /mnt/e/items/natherItems/monomer_seckill/docs/P2-check-data.sql
 --  2) Navicat / DBeaver：连接 3307 后选中 monomer_seckill 库，分段执行。
 --
 -- 说明：P2 秒杀以 seckill_goods（秒杀商品）为粒度，Redis 预扣库存。

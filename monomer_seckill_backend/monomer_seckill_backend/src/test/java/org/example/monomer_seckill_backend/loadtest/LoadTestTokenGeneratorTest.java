@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>解决「每次压测都要手动往 Redis 写一堆 token」的问题：
  * 为每个压测用户生成一个 UUID token，按 {@code mall:token:{token}} → userId 写入 Redis
  * （与 {@link TokenService} 同一 key 格式，value 存 userId），并把所有 token 逐行写入
- * {@code docs/tokens.txt}，供 {@code docs/post.lua} 读取。</p>
+ * {@code docs/tokens.txt}，供 {@code docs/P2-post.lua} 读取。</p>
  *
  * <p>前置条件：先运行 {@link LoadTestUserGeneratorTest} 批量新建用户；MySQL/Redis 已启动。</p>
  *
@@ -107,13 +107,13 @@ class LoadTestTokenGeneratorTest {
     }
 
     /**
-     * 定位 tokens.txt 输出路径：向上查找包含 post.lua 的 docs 目录，找不到则回退到当前目录。
+     * 定位 tokens.txt 输出路径：向上查找包含 P2-post.lua 的 docs 目录，找不到则回退到当前目录。
      */
     private Path resolveTokensFile() {
         Path dir = Paths.get(System.getProperty("user.dir"));
         for (Path cur = dir; cur != null; cur = cur.getParent()) {
             Path docs = cur.resolve("docs");
-            if (Files.isDirectory(docs) && Files.exists(docs.resolve("post.lua"))) {
+            if (Files.isDirectory(docs) && Files.exists(docs.resolve("P2-post.lua"))) {
                 return docs.resolve("tokens.txt");
             }
         }

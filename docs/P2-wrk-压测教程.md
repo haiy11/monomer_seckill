@@ -10,7 +10,7 @@ P2 秒杀是「**Redis 预扣库存 + token 鉴权**」：每个压测请求必�
 
 1. **批量新建用户** —— 跑单测 `LoadTestUserGeneratorTest`（一次建 20000 个 `loaduser_*` 用户）；
 2. **生成 token + tokens.txt** —— 跑单测 `LoadTestTokenGeneratorTest`（给每个用户写 `mall:token:{token}→userId` 到 Redis，并生成 `docs/tokens.txt`）；
-3. **重置数据** —— 执行 `docs/check-data.sql`【0】重置 DB，再调管理接口重置 Redis（SQL 动不了 Redis）；
+3. **重置数据** —— 执行 `docs/P2-check-data.sql`【0】重置 DB，再调管理接口重置 Redis（SQL 动不了 Redis）；
 4. **跑 wrk** → 压测后回数据库**校验** → 需要下一轮再执行【压测后重置】。
 
 前置：后端以 **7099** 端口运行、MySQL(3307)/Redis(6379) 已启动。
@@ -91,7 +91,7 @@ wrk --version   # 能看到版本号即安装成功
 
 ### 1. 重置 DB
 
-执行 `docs/check-data.sql` 里的【0】段（Navicat/DBeaver 或命令行都行）：
+执行 `docs/P2-check-data.sql` 里的【0】段（Navicat/DBeaver 或命令行都行）：
 
 ```sql
 DELETE FROM seckill_order;
@@ -133,16 +133,16 @@ Authorization: Bearer <token>
 
 ---
 
-## 六、tokens.txt 与 post.lua
+## 六、tokens.txt 与 P2-post.lua
 
-`docs/post.lua` 用 `io.lines("tokens.txt")` 读取一批 token（每行一个），在 `request()` 里循环取用并加到 `Authorization: Bearer <token>` 头。
+`docs/P2-post.lua` 用 `io.lines("tokens.txt")` 读取一批 token（每行一个），在 `request()` 里循环取用并加到 `Authorization: Bearer <token>` 头。
 
-⚠️ `tokens.txt` 必须与 `post.lua` 放在同一目录（都在 `docs/`，token 测试已自动写到 `docs/tokens.txt`）。运行 wrk 时进入 `docs` 目录再执行，或用 `-s /绝对路径/post.lua` 并保证 `io.lines` 能找到文件。
+⚠️ `tokens.txt` 必须与 `P2-post.lua` 放在同一目录（都在 `docs/`，token 测试已自动写到 `docs/tokens.txt`）。运行 wrk 时进入 `docs` 目录再执行，或用 `-s /绝对路径/P2-post.lua` 并保证 `io.lines` 能找到文件。
 
 然后运行（IP 换成你的主机 IP）：
 
 ```bash
-wrk -t10 -c200 -d30s --latency -s post.lua http://172.17.48.1:7099
+wrk -t10 -c200 -d30s --latency -s P2-post.lua http://172.17.48.1:7099
 ```
 
 ---
@@ -163,7 +163,7 @@ wrk -t4 -c100 -d10s --latency http://172.17.48.1:7099/api/goods
 
 **秒杀接口（核心）**：
 ```bash
-wrk -t4 -c200 -d30s --latency -s post.lua http://172.17.48.1:7099
+wrk -t4 -c200 -d30s --latency -s P2-post.lua http://172.17.48.1:7099
 ```
 
 **秒杀测试套路**：初始库存 1000，`-c` 设 **20000**（远超库存），就是要让「成功」和「库存不足」的边界暴露出来。
@@ -198,7 +198,7 @@ Transfer/sec:    273.48KB
 
 ## 九、高并发下如何确认数据对错（重点）
 
-压测完，**别只看报告，去数据库核对**。打开 `docs/check-data.sql`，跑「压测后校验」那几段（并配合 Redis CLI 核对剩余库存）。
+压测完，**别只看报告，去数据库核对**。打开 `docs/P2-check-data.sql`，跑「压测后校验」那几段（并配合 Redis CLI 核对剩余库存）。
 
 ### 校验 1：Redis 剩余库存不为负（超卖）
 DB 层 `seckill_goods.seckill_stock` 是原子扣减（`UPDATE ... WHERE seckill_stock > 0`），到 0 就停、**永远不会为负**；真正的超卖风险在 Redis 层。
@@ -264,8 +264,8 @@ SELECT seckill_goods_id, COUNT(*) AS sold_count FROM seckill_order GROUP BY seck
 
 ## 十一、相关文件
 
-- 压测数据正确性校验 SQL（含压测前重置 / 压测后校验 / 压测后重置）：`docs/check-data.sql`
-- 压测用 Lua 脚本：`docs/post.lua`
+- 压测数据正确性校验 SQL（含压测前重置 / 压测后校验 / 压测后重置）：`docs/P2-check-data.sql`
+- 压测用 Lua 脚本：`docs/P2-post.lua`
 - 批量新建用户单测：`src/test/java/org/example/monomer_seckill_backend/loadtest/LoadTestUserGeneratorTest.java`
 - 生成 Redis token + tokens.txt 单测：`src/test/java/org/example/monomer_seckill_backend/loadtest/LoadTestTokenGeneratorTest.java`
 - 压测共享配置（用户数量 / token 有效期等）：`src/test/java/org/example/monomer_seckill_backend/loadtest/LoadTestConfig.java`

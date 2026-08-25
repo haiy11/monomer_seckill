@@ -30,7 +30,7 @@
 | `error-code-catalog` | 设计 / 查询 A/B/C 三段式错误码（全语言） |
 
 补充资料（非 skill，需要时再读）：
-- 压测教程与数据校验：`docs/wrk-压测教程.md`、`docs/post.lua`、`docs/check-data.sql`
+- 压测教程与数据校验：`docs/P2-wrk-压测教程.md`、`docs/P2-post.lua`、`docs/P2-check-data.sql`
 - 完整路线图：`monomer_seckill_plan.md`
 - 微服务知识点笔记：`knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`
 - 微服务工程说明：`monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`

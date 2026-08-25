@@ -23,7 +23,7 @@ monomer_seckill/
 ├── docker-compose.yml               # MySQL + Redis 一键启动
 ├── AGENTS.md                        # 入口索引（指向本目录下的 Skills）
 ├── .dsh/skills/                     # 本项目 Agent Skills（按需加载）
-├── docs/                            # apifox-压测教程.md、check-data.sql
+├── docs/                            # P2-wrk-压测教程.md、P2-check-data.sql
 ├── monomer_seckill_backend/
 │   └── monomer_seckill_backend/     # 后端真正的项目根（含 pom.xml，两层目录）
 │       └── src/main/java/org/example/monomer_seckill_backend/
