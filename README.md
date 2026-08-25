@@ -1,12 +1,13 @@
-# 秒杀商城（单体 P2 + 微服务 P3/P4）
+# 秒杀商城（单体 P2 + 微服务 P3/P4/P5）
 
 秒杀学习项目：P2 完成**单体版**（Redis 预扣库存 + Lua 秒杀 + 三角色商城），
 P3 完成**微服务拆分**（Spring Cloud Alibaba + Nacos 注册发现 + OpenFeign 远程调用），
-P4 完成**统一流量入口**（Spring Cloud Gateway 路由转发 + JWT 鉴权）。
+P4 完成**统一流量入口**（Spring Cloud Gateway 路由转发 + JWT 鉴权），
+P5 完成**高可用限流熔断**（Sentinel 网关限流 + 服务熔断降级 + 热点参数限流）。
 
-> 微服务版详见 `monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`，知识点笔记见 `knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`。
+> 微服务版详见 `monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`，知识点笔记见 `knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`。
 
-## 微服务版（P3/P4）
+## 微服务版（P3/P4/P5）
 
 后端在 `monomer_seckill_backend/monomer_seckill_backend_cloud/`，拆为 5 个模块（共享一个 MySQL 库）：
 
@@ -15,8 +16,8 @@ P4 完成**统一流量入口**（Spring Cloud Gateway 路由转发 + JWT 鉴权
 | `common-service` | 公共库（不注册） | 统一响应体/异常/认证/Redis 工具/CORS 等基础设施 |
 | `user-service` | user-service / 7001 | 用户 + 管理员 + 商家 |
 | `goods-order-service` | goods-order-service / 7002 | 商品 + 购物车 + 正常订单 |
-| `seckill-service` | seckill-service / 7003 | 秒杀（秒杀商品/库存/秒杀订单全链路） |
-| `gateway-service` | gateway-service / 8080 | 统一入口：路由转发 + JWT 鉴权（P4 新增） |
+| `seckill-service` | seckill-service / 7003 | 秒杀（秒杀商品/库存/秒杀订单全链路）；P5 起 Sentinel 熔断降级 + 热点参数限流 |
+| `gateway-service` | gateway-service / 8080 | 统一入口：路由转发 + JWT 鉴权（P4）+ Sentinel 网关限流（P5） |
 
 前端在 `monomer_seckill_fromend/`：
 - `monomer/index.html`：单体版（调 7099）
