@@ -8,6 +8,12 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+    sentinel:
+      # 网关限流监控数据上报地址（可选）：需另行启动 sentinel-dashboard 才能可视化；
+      # 限流规则由代码程序化加载，不依赖控制台也能生效
+      transport:
+        dashboard: localhost:8858
+        port: 8719
     gateway:
       # 全局跨域：跨域统一由网关处理（下游各服务不再各自配置 CORS，避免重复 Access-Control-Allow-* 头导致浏览器 Failed to fetch）
       globalcors:

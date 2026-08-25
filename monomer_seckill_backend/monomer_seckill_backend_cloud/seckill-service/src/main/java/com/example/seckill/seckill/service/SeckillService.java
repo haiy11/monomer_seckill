@@ -1,5 +1,9 @@
 package com.example.seckill.seckill.service;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
+import com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowException;
 import com.example.seckill.common.core.BizException;
 import com.example.seckill.common.core.Result;
 import com.example.seckill.seckill.constant.SeckillConstants;
@@ -38,6 +42,7 @@ public class SeckillService {
      * @param userId         用户ID
      * @return 成功携带订单号
      */
+    @SentinelResource(value = "seckill", blockHandler = "seckillBlockHandler")
     public Result<String> seckill(Long seckillGoodsId, Long userId) {
         if (seckillGoodsId == null || userId == null) {
             return Result.fail("参数错误");
@@ -69,5 +74,27 @@ public class SeckillService {
             stockService.rollbackRedis(seckillGoodsId, userId);
             throw e;
         }
+    }
+
+    /**
+     * 秒杀资源被限流/熔断时的兜底处理（Sentinel 框架回调，仅处理 BlockException）。
+     *
+     * <p>签名约定：与原方法参数一致，末尾追加 {@link BlockException}。业务异常不受影响，
+     * 仍按原逻辑（内部捕获或 {@code GlobalExceptionHandler}）处理。</p>
+     *
+     * <ul>
+     *   <li>熔断（DegradeException）→ 503，服务熔断中；</li>
+     *   <li>热点参数限流（ParamFlowException）→ 429，该商品太火爆；</li>
+     *   <li>其它限流（FlowException 等）→ 429，请求过于频繁。</li>
+     * </ul>
+     */
+    public Result<String> seckillBlockHandler(Long seckillGoodsId, Long userId, BlockException ex) {
+        if (ex instanceof DegradeException) {
+            return Result.fail(503, "秒杀服务熔断中，请稍后再试");
+        }
+        if (ex instanceof ParamFlowException) {
+            return Result.fail(429, "该商品太火爆，请稍后再试");
+        }
+        return Result.fail(429, "请求过于频繁，请稍后再试");
     }
 }

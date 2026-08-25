@@ -1,6 +1,6 @@
 # monomer_seckill_backend_cloud
 
-秒杀项目 **P4 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）。
+秒杀项目 **P5 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）+ 高可用限流熔断（Sentinel）。
 
 原单体代码保留在 `../monomer_seckill_backend/`，未做任何改动；本目录是从单体拆分出的微服务工程。
 
@@ -11,8 +11,8 @@
 | `common-service` | （公共库，不注册） | **仅系统级基础设施**：统一响应体、异常、用户上下文、认证（Token/AuthInterceptor）、Redis 工具、MyBatis 字段填充（CORS 已上移至网关统一处理）。不含任何业务领域代码 |
 | `user-service` | `user-service` / **7001** | 用户 + 管理员 + 商家（人员相关）。持有 `mall_user`、`merchant_apply`；商品/订单/秒杀商品的审核与管理经 **Feign** 调对应服务 |
 | `goods-order-service` | `goods-order-service` / **7002** | 商品 + 购物车 + 正常订单（业务紧密）。持有 `goods`、`cart_item`、`mall_order`、`order_item`，并暴露内部审核/管理接口 |
-| `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、`seckill_order`、Redis 预扣库存、Lua 脚本、秒杀商品查询、秒杀订单全生命周期，并暴露内部审核/管理接口 |
-| `gateway-service` | `gateway-service` / **8080** | 统一流量入口（P4）。Spring Cloud Gateway 按 API 前缀路由到上述三个服务，统一处理跨域（CORS）与 JWT 鉴权（全局过滤器验签 + 角色校验）；`/internal/**` 不对外暴露 |
+| `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、`seckill_order`、Redis 预扣库存、Lua 脚本、秒杀商品查询、秒杀订单全生命周期，并暴露内部审核/管理接口；P5 起增加 Sentinel 熔断降级（慢调用比例）+ 热点参数限流（商品维度） |
+| `gateway-service` | `gateway-service` / **8080** | 统一流量入口（P4）。Spring Cloud Gateway 按 API 前缀路由到上述三个服务，统一处理跨域（CORS）与 JWT 鉴权（全局过滤器验签 + 角色校验）；`/internal/**` 不对外暴露；P5 起增加 Sentinel 网关流控（`/api/seckill/**` QPS=100） |
 
 ### 设计原则
 
@@ -82,15 +82,26 @@ cd gateway-service     ; mvn spring-boot:run
 
 启动后统一入口为 `http://localhost:8080`，各服务直连端口仍为 7001/7002/7003。
 
-## 五、设计说明（P3/P4 阶段取舍）
+## 五、设计说明（P3~P5 阶段取舍）
 
 - **共享单个 MySQL 库**（用户选择）：`goods-order-service` 作为数据属主负责 `schema.sql`（建全部表）+「用户/正常商品」种子数据；`seckill-service` 负责「秒杀商品」种子数据；其余服务 `spring.sql.init.mode=never`。
 - **跨服务访问走 Feign**：管理员/商家的审核与管理操作经 OpenFeign 调数据属主服务，user-service 不再持有商品/订单的 Mapper 副本，只在本地保留 Feign 响应所需的 DTO（少量契约重复）。
 - **秒杀域完整下沉**：秒杀商品、Redis 预扣库存、秒杀订单的创建/支付/取消/超时全部归 seckill-service，保证高并发路径与其它服务隔离。
 - **JWT 无状态鉴权（P4）**：登录时由 user-service 用 `common-service` 的 `TokenService` 签发 JWT（载荷含 `sub`=userId、`role`），网关全局过滤器验签 + 过期校验 + 角色校验；下游各服务仍用同一密钥做防御性校验（可独立直连不被绕过），密钥经 `jwt.secret` 统一配置，后续 P7 迁移到 Nacos Config 集中管理。
+- **Sentinel 限流熔断（P5）**：网关层用 `spring-cloud-alibaba-sentinel-gateway` 对秒杀下单 API 限流（QPS=100）；seckill-service 用 `@SentinelResource` + 程序化规则做熔断降级（慢调用比例 > 20%）与热点参数限流（商品维度）。规则写死在代码里、不依赖 Dashboard 即可生效，Dashboard 仅作可选的可视化。
 
-## 六、后续阶段衔接
+## 六、限流熔断（P5）
 
-- P5：引入 Sentinel 对网关限流、对 seckill-service 熔断降级。
-- P7：把 `application.yml`（含 `jwt.secret`）迁移到 Nacos Config。
+| 位置 | 资源 / 路径 | 规则 | 说明 |
+|------|-------------|------|------|
+| gateway-service | `/api/seckill/**`（自定义 API 分组 `seckill_api`） | 流控 QPS=100 | 秒杀下单接口每秒最多 100 个请求，超限返回 HTTP 429 |
+| seckill-service | `seckill`（秒杀下单方法） | 熔断：慢调用比例 > 20% | 统计窗口内 RT > 200ms 的慢调用占比 > 20% 时熔断 10s |
+| seckill-service | `seckill`（第 0 参数 = 商品ID） | 热点参数限流 | 默认单商品 QPS=10，热点商品 id=1 收紧到 QPS=5 |
+| seckill-service | `seckill-demo`（演示端点） | 熔断：慢调用比例 > 20% | `GET /api/seckill/demo/slow`，用于人工观察熔断触发/恢复 |
+
+规则采用「代码程序化加载」：网关见 `GatewaySentinelConfig`，秒杀服务见 `SentinelConfig`，不依赖 Sentinel Dashboard 也能生效。Dashboard 作为可选的监控可视化，启动后配置 `spring.cloud.sentinel.transport.dashboard` 即可接入。详细原理与验证步骤见 `knowledge/P5-限流熔断知识.md`。
+
+## 七、后续阶段衔接
+
+- P7：把 `application.yml`（含 `jwt.secret`、Sentinel 规则）迁移到 Nacos Config，实现规则动态刷新（不改代码、不重启即可调整限流/熔断阈值）。
 - P8：秒杀下单改 MQ 异步削峰。

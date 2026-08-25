@@ -36,6 +36,12 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
 
+        <!-- Sentinel 流量防护（P5）：服务级熔断降级 + 热点参数限流（慢调用比例熔断） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
         <!-- MyBatis-Plus：本服务持有 SeckillGoods 实体与 Mapper，直连共享库读取秒杀商品 -->
         <dependency>
             <groupId>com.baomidou</groupId>

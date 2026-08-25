@@ -33,6 +33,18 @@
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
+        <!-- Sentinel 网关流控（P5）：基于 Spring Cloud Gateway 的限流（GatewayFlowRule） -->
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-alibaba-sentinel-gateway</artifactId>
+        </dependency>
+
+        <!-- Sentinel 控制台传输：把网关限流监控数据上报到 Sentinel Dashboard（可视化，可选） -->
+        <dependency>
+            <groupId>com.alibaba.csp</groupId>
+            <artifactId>sentinel-transport-simple-http</artifactId>
+        </dependency>
+
         <!-- JJWT：网关解析/校验 JWT（与 common-service 的 TokenService 共享同一密钥与载荷约定） -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

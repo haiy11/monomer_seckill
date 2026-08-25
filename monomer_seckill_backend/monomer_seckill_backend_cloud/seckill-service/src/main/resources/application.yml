@@ -23,6 +23,14 @@ spring:
     nacos:
       discovery:
         server-addr: localhost:8848
+    sentinel:
+      # 立即初始化 Sentinel：确保启动即加载规则、控制台可连（否则首请求才懒加载）
+      eager: true
+      transport:
+        # Sentinel Dashboard 地址（可选）：可视化监控/动态改规则，需另行启动 sentinel-dashboard
+        dashboard: localhost:8858
+        # 本机上报/接收控制台指令的端口（同机多服务需互不相同，避免端口冲突）
+        port: 8720
 
 mybatis-plus:
   configuration:
