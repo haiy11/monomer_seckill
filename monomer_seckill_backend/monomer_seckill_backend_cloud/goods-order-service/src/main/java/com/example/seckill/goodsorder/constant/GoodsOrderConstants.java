@@ -35,4 +35,19 @@ public final class GoodsOrderConstants {
     public static final int ORDER_STATUS_CANCELED = 2;
     /** 订单状态：超时关闭 */
     public static final int ORDER_STATUS_TIMEOUT = 3;
+
+    /** 商品信息多级缓存 key 前缀，拼 goodsId：goods:cache:{goodsId} */
+    public static final String GOODS_KEY_PREFIX = "goods:cache:";
+
+    /** 商品信息缓存有效期（秒） */
+    public static final long GOODS_CACHE_TTL_SECONDS = 1800;
+
+    /** 商品信息空值缓存有效期（秒） */
+    public static final long GOODS_NULL_TTL_SECONDS = 60;
+
+    /** 商品本地缓存（Caffeine L1）最大条目数 */
+    public static final long GOODS_LOCAL_CACHE_MAX_SIZE = 1000;
+
+    /** 商品本地缓存（Caffeine L1）有效期（秒），作为失效广播之外的兜底一致性手段 */
+    public static final long GOODS_LOCAL_CACHE_TTL_SECONDS = 300;
 }

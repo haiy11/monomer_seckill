@@ -1,39 +1,36 @@
 package com.example.seckill.seckill.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.seckill.common.cache.MultiLevelCache;
 import com.example.seckill.common.core.BizException;
-import com.example.seckill.common.redis.RedisUtil;
 import com.example.seckill.seckill.constant.SeckillConstants;
 import com.example.seckill.seckill.entity.SeckillGoods;
 import com.example.seckill.seckill.mapper.SeckillGoodsMapper;
 import com.example.seckill.seckill.vo.SeckillGoodsVO;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
- * 秒杀商品服务：查询、状态维护（含 Redis 缓存），秒杀域专属。
+ * 秒杀商品服务：查询、状态维护（含多级缓存），秒杀域专属。
+ *
+ * <p>热点秒杀商品信息走「Caffeine 本地 → Redis 分布式 → DB」多级缓存，大幅降低高并发
+ * 读场景下的 Redis/DB 压力。缓存更新采用 Cache-Aside：更新 DB 后删除缓存。</p>
  *
  * @author haiy
  * @date 2026/08/17
  */
-@Slf4j
 @Service
 public class SeckillGoodsService {
 
     private final SeckillGoodsMapper seckillGoodsMapper;
-    private final RedisUtil redisUtil;
-    private final ObjectMapper objectMapper;
+    private final MultiLevelCache<Long, SeckillGoods> seckillGoodsCache;
 
-    public SeckillGoodsService(SeckillGoodsMapper seckillGoodsMapper, RedisUtil redisUtil, ObjectMapper objectMapper) {
+    public SeckillGoodsService(SeckillGoodsMapper seckillGoodsMapper,
+                               MultiLevelCache<Long, SeckillGoods> seckillGoodsCache) {
         this.seckillGoodsMapper = seckillGoodsMapper;
-        this.redisUtil = redisUtil;
-        this.objectMapper = objectMapper;
+        this.seckillGoodsCache = seckillGoodsCache;
     }
 
     /**
@@ -47,58 +44,32 @@ public class SeckillGoodsService {
     }
 
     /**
-     * 查询单个秒杀商品（含商品信息）。
+     * 查询单个秒杀商品（含商品信息，走多级缓存）。
      */
     public SeckillGoodsVO getVO(Long id) {
-        SeckillGoods sg = seckillGoodsMapper.selectById(id);
+        SeckillGoods sg = getByIdCached(id);
         return sg == null ? null : toVO(sg);
     }
 
     /**
-     * 按 ID 查询秒杀商品实体。
+     * 按 ID 查询秒杀商品实体（直查 DB，管理端/内部流程需最新数据时使用）。
      */
     public SeckillGoods getById(Long id) {
         return id == null ? null : seckillGoodsMapper.selectById(id);
     }
 
     /**
-     * 按 ID 查询秒杀商品实体（带 Redis 缓存）。
+     * 按 ID 查询秒杀商品实体（走 Caffeine → Redis → DB 多级缓存）。
      */
     public SeckillGoods getByIdCached(Long id) {
-        if (id == null) {
-            return null;
-        }
-        String key = goodsCacheKey(id);
-        String json = redisUtil.get(key);
-        if (json != null) {
-            if (SeckillConstants.GOODS_CACHE_NULL.equals(json)) {
-                return null;
-            }
-            SeckillGoods cached = parseGoods(json);
-            if (cached != null) {
-                return cached;
-            }
-            redisUtil.delete(key);
-        }
-        SeckillGoods sg = seckillGoodsMapper.selectById(id);
-        if (sg != null) {
-            String value = toJson(sg);
-            if (value != null) {
-                redisUtil.set(key, value, SeckillConstants.GOODS_CACHE_TTL_SECONDS, TimeUnit.SECONDS);
-            }
-        } else {
-            redisUtil.set(key, SeckillConstants.GOODS_CACHE_NULL, SeckillConstants.GOODS_NULL_TTL_SECONDS, TimeUnit.SECONDS);
-        }
-        return sg;
+        return seckillGoodsCache.get(id);
     }
 
     /**
-     * 删除秒杀商品缓存。
+     * 删除秒杀商品缓存（更新 DB 后调用：删本地 + 删分布式 + 广播其它实例删本地）。
      */
     public void evictCache(Long id) {
-        if (id != null) {
-            redisUtil.delete(goodsCacheKey(id));
-        }
+        seckillGoodsCache.evict(id);
     }
 
     /**
@@ -171,27 +142,5 @@ public class SeckillGoodsService {
             throw new BizException("秒杀已结束");
         }
         return sg;
-    }
-
-    private String goodsCacheKey(Long id) {
-        return SeckillConstants.GOODS_KEY_PREFIX + id;
-    }
-
-    private SeckillGoods parseGoods(String json) {
-        try {
-            return objectMapper.readValue(json, SeckillGoods.class);
-        } catch (JsonProcessingException e) {
-            log.warn("秒杀商品缓存反序列化失败，将回源查库，json={}", json, e);
-            return null;
-        }
-    }
-
-    private String toJson(SeckillGoods sg) {
-        try {
-            return objectMapper.writeValueAsString(sg);
-        } catch (JsonProcessingException e) {
-            log.error("秒杀商品缓存序列化失败，本次不写缓存，id={}", sg.getId(), e);
-            return null;
-        }
     }
 }

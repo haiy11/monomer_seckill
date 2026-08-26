@@ -1,6 +1,6 @@
 # monomer_seckill_backend_cloud
 
-秒杀项目 **P5 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）+ 高可用限流熔断（Sentinel）。
+秒杀项目 **P6 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）+ 高可用限流熔断（Sentinel）+ 多级缓存（Caffeine 本地缓存 + Redis 分布式缓存）。
 
 原单体代码保留在 `../monomer_seckill_backend/`，未做任何改动；本目录是从单体拆分出的微服务工程。
 
@@ -8,10 +8,10 @@
 
 | 模块 | 服务名 / 端口 | 职责 |
 |------|--------------|------|
-| `common-service` | （公共库，不注册） | **仅系统级基础设施**：统一响应体、异常、用户上下文、认证（Token/AuthInterceptor）、Redis 工具、MyBatis 字段填充（CORS 已上移至网关统一处理）。不含任何业务领域代码 |
+| `common-service` | （公共库，不注册） | **仅系统级基础设施**：统一响应体、异常、用户上下文、认证（Token/AuthInterceptor）、Redis 工具、MyBatis 字段填充（CORS 已上移至网关统一处理）；P6 起增加多级缓存通用组件（`MultiLevelCache` + Redis Pub/Sub 失效广播）。不含任何业务领域代码 |
 | `user-service` | `user-service` / **7001** | 用户 + 管理员 + 商家（人员相关）。持有 `mall_user`、`merchant_apply`；商品/订单/秒杀商品的审核与管理经 **Feign** 调对应服务 |
-| `goods-order-service` | `goods-order-service` / **7002** | 商品 + 购物车 + 正常订单（业务紧密）。持有 `goods`、`cart_item`、`mall_order`、`order_item`，并暴露内部审核/管理接口 |
-| `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、`seckill_order`、Redis 预扣库存、Lua 脚本、秒杀商品查询、秒杀订单全生命周期，并暴露内部审核/管理接口；P5 起增加 Sentinel 熔断降级（慢调用比例）+ 热点参数限流（商品维度） |
+| `goods-order-service` | `goods-order-service` / **7002** | 商品 + 购物车 + 正常订单（业务紧密）。持有 `goods`、`cart_item`、`mall_order`、`order_item`，并暴露内部审核/管理接口；P6 起正常商品详情走多级缓存，审核/上下架/库存变化后删除缓存 |
+| `seckill-service` | `seckill-service` / **7003** | 秒杀（高并发流量隔离）。持有 `seckill_goods`、`seckill_order`、Redis 预扣库存、Lua 脚本、秒杀商品查询、秒杀订单全生命周期，并暴露内部审核/管理接口；P5 起增加 Sentinel 熔断降级（慢调用比例）+ 热点参数限流（商品维度）；P6 起热点秒杀商品信息走 Caffeine → Redis → DB 多级缓存 |
 | `gateway-service` | `gateway-service` / **8080** | 统一流量入口（P4）。Spring Cloud Gateway 按 API 前缀路由到上述三个服务，统一处理跨域（CORS）与 JWT 鉴权（全局过滤器验签 + 角色校验）；`/internal/**` 不对外暴露；P5 起增加 Sentinel 网关流控（`/api/seckill/**` QPS=100） |
 
 ### 设计原则
@@ -89,6 +89,7 @@ cd gateway-service     ; mvn spring-boot:run
 - **秒杀域完整下沉**：秒杀商品、Redis 预扣库存、秒杀订单的创建/支付/取消/超时全部归 seckill-service，保证高并发路径与其它服务隔离。
 - **JWT 无状态鉴权（P4）**：登录时由 user-service 用 `common-service` 的 `TokenService` 签发 JWT（载荷含 `sub`=userId、`role`），网关全局过滤器验签 + 过期校验 + 角色校验；下游各服务仍用同一密钥做防御性校验（可独立直连不被绕过），密钥经 `jwt.secret` 统一配置，后续 P7 迁移到 Nacos Config 集中管理。
 - **Sentinel 限流熔断（P5）**：网关层用 `spring-cloud-alibaba-sentinel-gateway` 对秒杀下单 API 限流（QPS=100）；seckill-service 用 `@SentinelResource` + 程序化规则做熔断降级（慢调用比例 > 20%）与热点参数限流（商品维度）。规则写死在代码里、不依赖 Dashboard 即可生效，Dashboard 仅作可选的可视化。
+- **多级缓存（P6）**：`common-service` 抽出通用组件 `MultiLevelCache<K, V>`（L1 Caffeine → L2 Redis → L3 DB，逐级回填 + 空值占位防穿透）；写路径采用 Cache-Aside（先更新 DB 后删缓存），并通过 Redis Pub/Sub 广播让其它实例同步删各自 L1，保证多实例最终一致。seckill-service 的秒杀商品、goods-order-service 的正常商品均已接入。
 
 ## 六、限流熔断（P5）
 
@@ -101,7 +102,18 @@ cd gateway-service     ; mvn spring-boot:run
 
 规则采用「代码程序化加载」：网关见 `GatewaySentinelConfig`，秒杀服务见 `SentinelConfig`，不依赖 Sentinel Dashboard 也能生效。Dashboard 作为可选的监控可视化，启动后配置 `spring.cloud.sentinel.transport.dashboard` 即可接入。详细原理与验证步骤见 `knowledge/P5-限流熔断知识.md`；JMeter 压测实操见 `docs/P5-JMeter压测.md`。
 
-## 七、后续阶段衔接
+## 七、多级缓存（P6）
 
-- P7：把 `application.yml`（含 `jwt.secret`、Sentinel 规则）迁移到 Nacos Config，实现规则动态刷新（不改代码、不重启即可调整限流/熔断阈值）。
+| 位置 | 缓存对象 | 缓存名 | 说明 |
+|------|----------|--------|------|
+| seckill-service | `SeckillGoods` 秒杀商品 | `seckill-goods` | 热点商品详情 / 下单校验（`requirePurchasable`）走 Caffeine → Redis → DB |
+| goods-order-service | `Goods` 正常商品 | `goods` | 商品详情走多级缓存；审核/上下架/库存变化后删除缓存 |
+
+读路径：L1 Caffeine → L2 Redis → L3 DB，逐级回填；DB 查不到时写空值占位（防穿透）。写路径：Cache-Aside（先更新 DB 后删缓存），删本地 L1 + 删分布式 L2 + Redis Pub/Sub 广播通知其它实例删各自 L1；本地缓存短 TTL（5 分钟）作为广播丢失时的兜底。库存变化（下单扣减/取消回补）在 `@Transactional` 事务提交后再删缓存，避免脏读回填。
+
+关键类：`common-service/.../common/cache/`（`MultiLevelCache`、`MultiLevelCacheRegistry`、`CacheEvictListener`、`MultiLevelCacheConfig`）；接入见各服务的 `CacheConfig` 与 `SeckillGoodsService` / `GoodsService`。原理笔记见 `knowledge/P6-多级缓存知识.md`；JMeter 对比压测见 `docs/P6-JMeter压测.md`。
+
+## 八、后续阶段衔接
+
+- P7：把 `application.yml`（含 `jwt.secret`、Sentinel 规则、多级缓存 TTL 等）迁移到 Nacos Config，实现规则动态刷新（不改代码、不重启即可调整限流/熔断阈值）。
 - P8：秒杀下单改 MQ 异步削峰。

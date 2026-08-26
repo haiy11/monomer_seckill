@@ -14,6 +14,8 @@ import com.example.seckill.goodsorder.mapper.OrderItemMapper;
 import com.example.seckill.goodsorder.vo.OrderVO;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -36,13 +38,15 @@ public class OrderService {
     private final OrderItemMapper orderItemMapper;
     private final CartItemMapper cartItemMapper;
     private final GoodsMapper goodsMapper;
+    private final GoodsService goodsService;
 
     public OrderService(MallOrderMapper mallOrderMapper, OrderItemMapper orderItemMapper,
-                        CartItemMapper cartItemMapper, GoodsMapper goodsMapper) {
+                        CartItemMapper cartItemMapper, GoodsMapper goodsMapper, GoodsService goodsService) {
         this.mallOrderMapper = mallOrderMapper;
         this.orderItemMapper = orderItemMapper;
         this.cartItemMapper = cartItemMapper;
         this.goodsMapper = goodsMapper;
+        this.goodsService = goodsService;
     }
 
     /**
@@ -72,6 +76,7 @@ public class OrderService {
             if (rows == 0) {
                 throw new BizException("库存不足：" + goods.getName());
             }
+            evictGoodsCacheAfterCommit(goods.getId());
             BigDecimal amount = goods.getPrice().multiply(BigDecimal.valueOf(quantity));
             total = total.add(amount);
 
@@ -171,6 +176,27 @@ public class OrderService {
                 .eq(OrderItem::getOrderId, orderId));
         for (OrderItem oi : items) {
             goodsMapper.restoreStock(oi.getGoodsId(), oi.getQuantity());
+            evictGoodsCacheAfterCommit(oi.getGoodsId());
+        }
+    }
+
+    /**
+     * 事务提交后再删除商品缓存（Cache-Aside 严格时序）。
+     *
+     * <p>扣减/回补库存属于事务内的写操作，若在事务提交前删除缓存，期间其它请求可能
+     * 回源读到未提交的旧数据并重新写入缓存，导致缓存与 DB 不一致。因此把缓存删除
+     * 推迟到事务提交后执行；无活动事务时（独立调用）直接删除。</p>
+     */
+    private void evictGoodsCacheAfterCommit(Long goodsId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    goodsService.evictCache(goodsId);
+                }
+            });
+        } else {
+            goodsService.evictCache(goodsId);
         }
     }
 

@@ -47,6 +47,12 @@ public final class SeckillConstants {
     /** 秒杀商品信息空值缓存有效期（秒） */
     public static final long GOODS_NULL_TTL_SECONDS = 60;
 
+    /** 秒杀商品本地缓存（Caffeine L1）最大条目数 */
+    public static final long GOODS_LOCAL_CACHE_MAX_SIZE = 1000;
+
+    /** 秒杀商品本地缓存（Caffeine L1）有效期（秒），作为失效广播之外的兜底一致性手段 */
+    public static final long GOODS_LOCAL_CACHE_TTL_SECONDS = 300;
+
     /** 库存空值缓存占位值：表示秒杀商品不存在（对扣库存脚本而言等价于无库存） */
     public static final String STOCK_NULL_VALUE = "0";
 

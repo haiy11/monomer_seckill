@@ -115,4 +115,14 @@ public class RedisUtil {
     public Long executeScript(RedisScript<Long> script, List<String> keys, Object... args) {
         return stringRedisTemplate.execute(script, keys, args);
     }
+
+    /**
+     * 向指定 channel 发布一条消息（Redis Pub/Sub）。
+     *
+     * <p>P6 多级缓存用于「本地缓存失效广播」：某个服务实例更新 DB 后删除分布式缓存，
+     * 再通过该通道通知其它实例同步删除各自进程内的 L1 本地缓存，保证多实例缓存一致。</p>
+     */
+    public void publish(String channel, String message) {
+        stringRedisTemplate.convertAndSend(channel, message);
+    }
 }

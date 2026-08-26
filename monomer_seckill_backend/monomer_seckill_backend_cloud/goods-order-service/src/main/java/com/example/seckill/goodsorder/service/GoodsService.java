@@ -1,6 +1,7 @@
 package com.example.seckill.goodsorder.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.seckill.common.cache.MultiLevelCache;
 import com.example.seckill.common.core.BizException;
 import com.example.seckill.goodsorder.constant.GoodsOrderConstants;
 import com.example.seckill.goodsorder.entity.Goods;
@@ -10,7 +11,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * 商品服务（公开查询）。
+ * 商品服务（公开查询，商品详情走多级缓存）。
+ *
+ * <p>商品详情是高频读路径，走「Caffeine → Redis → DB」多级缓存；缓存更新采用
+ * Cache-Aside：商品审核/上下架/库存变化后删除缓存。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -19,9 +23,11 @@ import java.util.List;
 public class GoodsService {
 
     private final GoodsMapper goodsMapper;
+    private final MultiLevelCache<Long, Goods> goodsCache;
 
-    public GoodsService(GoodsMapper goodsMapper) {
+    public GoodsService(GoodsMapper goodsMapper, MultiLevelCache<Long, Goods> goodsCache) {
         this.goodsMapper = goodsMapper;
+        this.goodsCache = goodsCache;
     }
 
     /**
@@ -34,10 +40,17 @@ public class GoodsService {
     }
 
     /**
-     * 按 ID 查询商品。
+     * 按 ID 查询商品（走 Caffeine → Redis → DB 多级缓存）。
      */
     public Goods getById(Long id) {
-        return id == null ? null : goodsMapper.selectById(id);
+        return goodsCache.get(id);
+    }
+
+    /**
+     * 删除商品缓存（商品审核/上下架/库存变化后调用：删本地 + 删分布式 + 广播其它实例删本地）。
+     */
+    public void evictCache(Long id) {
+        goodsCache.evict(id);
     }
 
     /**

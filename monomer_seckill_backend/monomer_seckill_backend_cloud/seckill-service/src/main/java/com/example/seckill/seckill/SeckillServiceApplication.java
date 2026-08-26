@@ -20,7 +20,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.example.seckill.common.auth",
         "com.example.seckill.common.redis",
         "com.example.seckill.common.web",
-        "com.example.seckill.common.mybatis"
+        "com.example.seckill.common.mybatis",
+        "com.example.seckill.common.cache"
 })
 @MapperScan("com.example.seckill.seckill.mapper")
 @EnableScheduling

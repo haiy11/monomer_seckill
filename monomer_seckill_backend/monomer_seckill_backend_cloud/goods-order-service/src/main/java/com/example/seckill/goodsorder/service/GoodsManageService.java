@@ -19,9 +19,11 @@ import java.util.List;
 public class GoodsManageService {
 
     private final GoodsMapper goodsMapper;
+    private final GoodsService goodsService;
 
-    public GoodsManageService(GoodsMapper goodsMapper) {
+    public GoodsManageService(GoodsMapper goodsMapper, GoodsService goodsService) {
         this.goodsMapper = goodsMapper;
+        this.goodsService = goodsService;
     }
 
     // ==================== 管理员：商品审核 ====================
@@ -37,6 +39,7 @@ public class GoodsManageService {
         Goods goods = requirePendingGoods(id);
         goods.setStatus(GoodsOrderConstants.GOODS_STATUS_ON);
         goodsMapper.updateById(goods);
+        goodsService.evictCache(id);
     }
 
     /**
@@ -46,6 +49,7 @@ public class GoodsManageService {
         Goods goods = requirePendingGoods(id);
         goods.setStatus(GoodsOrderConstants.GOODS_STATUS_REJECTED);
         goodsMapper.updateById(goods);
+        goodsService.evictCache(id);
     }
 
     private Goods requirePendingGoods(Long id) {
@@ -94,6 +98,7 @@ public class GoodsManageService {
             db.setStatus(GoodsOrderConstants.GOODS_STATUS_PENDING);
         }
         goodsMapper.updateById(db);
+        goodsService.evictCache(goodsId);
         return db;
     }
 
@@ -112,6 +117,7 @@ public class GoodsManageService {
         }
         db.setStatus(status);
         goodsMapper.updateById(db);
+        goodsService.evictCache(goodsId);
     }
 
     private Goods requireOwnGoods(Long merchantId, Long goodsId) {

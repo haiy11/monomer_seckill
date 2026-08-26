@@ -33,6 +33,7 @@
         <mybatis-plus.version>3.5.7</mybatis-plus.version>
         <common-service.version>1.0.0</common-service.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <caffeine.version>3.1.8</caffeine.version>
     </properties>
 
     <!-- 统一依赖版本仲裁（子模块在此读取版本，依赖仍需在子模块显式声明） -->
@@ -65,6 +66,12 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
+            </dependency>
+            <!-- Caffeine：P6 多级缓存 L1 本地缓存 -->
+            <dependency>
+                <groupId>com.github.ben-manes.caffeine</groupId>
+                <artifactId>caffeine</artifactId>
+                <version>${caffeine.version}</version>
             </dependency>
             <!-- JJWT：JWT 签发与校验（P4 网关鉴权 + 各服务防御性校验共用） -->
             <dependency>
