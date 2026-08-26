@@ -4,7 +4,7 @@
 
 后端有两套，互不影响：
 - 单体版（P2）：`monomer_seckill_backend/monomer_seckill_backend/`（两层目录，端口 7099）
-- 微服务版（P3/P4/P5）：`monomer_seckill_backend/monomer_seckill_backend_cloud/`（父 pom + common-service / user-service / goods-order-service / seckill-service / gateway-service，业务端口 7001/7002/7003，网关统一入口 8080）
+- 微服务版（P3/P4/P5/P6）：`monomer_seckill_backend/monomer_seckill_backend_cloud/`（父 pom + common-service / user-service / goods-order-service / seckill-service / gateway-service，业务端口 7001/7002/7003，网关统一入口 8080）
 
 前端在 `monomer_seckill_fromend/`：
 - 单体版：`monomer_seckill_fromend/monomer/index.html`（调 7099）
@@ -32,6 +32,7 @@
 补充资料（非 skill，需要时再读）：
 - 压测教程与数据校验：`docs/P2-wrk-压测教程.md`、`docs/P2-post.lua`、`docs/P2-check-data.sql`
 - P5 限流熔断 JMeter 压测：`docs/P5-JMeter压测.md`、`docs/P5-seckill-gateway-limit.jmx`
+- P6 多级缓存 JMeter 压测：`docs/P6-JMeter压测.md`、`docs/P6-seckill-goods-cache.jmx`
 - 完整路线图：`monomer_seckill_plan.md`
-- 微服务知识点笔记：`knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`
+- 微服务知识点笔记：`knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`、`knowledge/P6-多级缓存知识.md`
 - 微服务工程说明：`monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`

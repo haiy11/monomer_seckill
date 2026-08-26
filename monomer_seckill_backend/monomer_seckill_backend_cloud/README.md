@@ -82,7 +82,7 @@ cd gateway-service     ; mvn spring-boot:run
 
 启动后统一入口为 `http://localhost:8080`，各服务直连端口仍为 7001/7002/7003。
 
-## 五、设计说明（P3~P5 阶段取舍）
+## 五、设计说明（P3~P6 阶段取舍）
 
 - **共享单个 MySQL 库**（用户选择）：`goods-order-service` 作为数据属主负责 `schema.sql`（建全部表）+「用户/正常商品」种子数据；`seckill-service` 负责「秒杀商品」种子数据；其余服务 `spring.sql.init.mode=never`。
 - **跨服务访问走 Feign**：管理员/商家的审核与管理操作经 OpenFeign 调数据属主服务，user-service 不再持有商品/订单的 Mapper 副本，只在本地保留 Feign 响应所需的 DTO（少量契约重复）。
@@ -110,6 +110,8 @@ cd gateway-service     ; mvn spring-boot:run
 | goods-order-service | `Goods` 正常商品 | `goods` | 商品详情走多级缓存；审核/上下架/库存变化后删除缓存 |
 
 读路径：L1 Caffeine → L2 Redis → L3 DB，逐级回填；DB 查不到时写空值占位（防穿透）。写路径：Cache-Aside（先更新 DB 后删缓存），删本地 L1 + 删分布式 L2 + Redis Pub/Sub 广播通知其它实例删各自 L1；本地缓存短 TTL（5 分钟）作为广播丢失时的兜底。库存变化（下单扣减/取消回补）在 `@Transactional` 事务提交后再删缓存，避免脏读回填。
+
+扩展与原理：`MultiLevelCache` 是普通类，一个服务的 `CacheConfig` 可定义多个 `@Bean` 缓存多种数据（要求 `name` 唯一 + Redis key 前缀不同）；失效广播是 Redis Pub/Sub **推送**模型（`PSUBSCRIBE cache:evict:*`，非轮询），各实例收到推送后由 `CacheEvictListener` → `MultiLevelCacheRegistry` 路由到对应缓存删本地。
 
 关键类：`common-service/.../common/cache/`（`MultiLevelCache`、`MultiLevelCacheRegistry`、`CacheEvictListener`、`MultiLevelCacheConfig`）；接入见各服务的 `CacheConfig` 与 `SeckillGoodsService` / `GoodsService`。原理笔记见 `knowledge/P6-多级缓存知识.md`；JMeter 对比压测见 `docs/P6-JMeter压测.md`。
 
