@@ -141,9 +141,15 @@ CREATE TABLE `seckill_order` (
   `create_time`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '下单时间',
   `pay_time`         DATETIME      DEFAULT NULL            COMMENT '支付时间',
   `update_time`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  -- 有效订单去重键：仅「待支付(0)/已支付(1)」生成值，已取消(2)/超时关闭(3)为 NULL
+  -- （MySQL 唯一索引允许多个 NULL）：取消/超时关闭后旧订单不再占用名额，用户可再次下单；
+  -- 已支付订单仍受约束，保持每用户每秒杀活动限购一单。
+  `dedup_key`        VARCHAR(64)   GENERATED ALWAYS AS (
+      CASE WHEN `status` IN (0, 1) THEN CONCAT(`seckill_goods_id`, '#', `user_id`) ELSE NULL END
+  ) STORED COMMENT '有效订单去重键（待支付/已支付唯一，取消/超时关闭为 NULL）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_no` (`order_no`),
-  UNIQUE KEY `uk_seckill_user` (`seckill_goods_id`, `user_id`),
+  UNIQUE KEY `uk_seckill_user_active` (`dedup_key`),
   KEY `idx_user` (`user_id`),
   KEY `idx_status_create` (`status`, `create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='秒杀订单表';

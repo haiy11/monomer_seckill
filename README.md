@@ -73,7 +73,7 @@ P7 完成**配置中心 + 动态刷新**（Nacos Config 配置集中管理 + @Re
 | `cart_item` | 购物车 |
 | `mall_order` | 订单主表 |
 | `order_item` | 订单明细（一个订单多商品） |
-| `seckill_order` | 秒杀订单（`uk_seckill_user` 防重复） |
+| `seckill_order` | 秒杀订单（`uk_seckill_user_active` 防重复：仅对待支付/已支付生效，取消/超时关闭后可再次下单） |
 
 ## Redis 预扣库存 + Lua
 
