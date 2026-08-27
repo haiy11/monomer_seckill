@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -15,10 +16,13 @@ import java.nio.charset.StandardCharsets;
  * <p>与 common-service 的 {@code TokenService} 保持同一密钥、同一算法（HS256）与同一载荷约定：
  * {@code sub}=用户ID、{@code role}=角色。网关只负责校验与解析，不签发 token（签发在 user-service 登录时完成）。</p>
  *
+ * <p>P7 起标记 {@code @RefreshScope}：{@code jwt.secret} 迁移到 Nacos Config 后修改无需重启即生效。</p>
+ *
  * @author haiy
  * @date 2026/08/17
  */
 @Component
+@RefreshScope
 public class JwtUtil {
 
     /** JWT 载荷：角色字段名（与 TokenService.CLAIM_ROLE 保持一致） */

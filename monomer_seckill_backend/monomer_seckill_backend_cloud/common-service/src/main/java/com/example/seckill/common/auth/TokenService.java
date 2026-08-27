@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
@@ -20,10 +21,14 @@ import java.util.Date;
  * <p>JWT 无状态：签发后不再写入 Redis，校验只需本地验签 + 过期校验，天然适合网关集中鉴权；
  * 各下游服务仍通过本类做防御性校验，与网关共享同一密钥。</p>
  *
+ * <p>P7 起标记 {@code @RefreshScope}：{@code jwt.secret}/{@code jwt.expire-minutes} 迁移到
+ * Nacos Config 后，修改配置无需重启即可生效（新密钥立即用于签发/校验，旧 token 随之失效）。</p>
+ *
  * @author haiy
  * @date 2026/08/17
  */
 @Service
+@RefreshScope
 public class TokenService {
 
     /** JWT 载荷：角色字段名 */

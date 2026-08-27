@@ -1,6 +1,6 @@
 # monomer_seckill_backend_cloud
 
-秒杀项目 **P6 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）+ 高可用限流熔断（Sentinel）+ 多级缓存（Caffeine 本地缓存 + Redis 分布式缓存）。
+秒杀项目 **P7 阶段**：微服务拆分 + Nacos 注册发现 + OpenFeign 远程调用 + 统一流量入口（Spring Cloud Gateway + JWT 鉴权）+ 高可用限流熔断（Sentinel）+ 多级缓存（Caffeine 本地缓存 + Redis 分布式缓存）+ 配置中心（Nacos Config 动态刷新）。
 
 原单体代码保留在 `../monomer_seckill_backend/`，未做任何改动；本目录是从单体拆分出的微服务工程。
 
@@ -82,7 +82,7 @@ cd gateway-service     ; mvn spring-boot:run
 
 启动后统一入口为 `http://localhost:8080`，各服务直连端口仍为 7001/7002/7003。
 
-## 五、设计说明（P3~P6 阶段取舍）
+## 五、设计说明（P3~P7 阶段取舍）
 
 - **共享单个 MySQL 库**（用户选择）：`goods-order-service` 作为数据属主负责 `schema.sql`（建全部表）+「用户/正常商品」种子数据；`seckill-service` 负责「秒杀商品」种子数据；其余服务 `spring.sql.init.mode=never`。
 - **跨服务访问走 Feign**：管理员/商家的审核与管理操作经 OpenFeign 调数据属主服务，user-service 不再持有商品/订单的 Mapper 副本，只在本地保留 Feign 响应所需的 DTO（少量契约重复）。
@@ -90,6 +90,7 @@ cd gateway-service     ; mvn spring-boot:run
 - **JWT 无状态鉴权（P4）**：登录时由 user-service 用 `common-service` 的 `TokenService` 签发 JWT（载荷含 `sub`=userId、`role`），网关全局过滤器验签 + 过期校验 + 角色校验；下游各服务仍用同一密钥做防御性校验（可独立直连不被绕过），密钥经 `jwt.secret` 统一配置，后续 P7 迁移到 Nacos Config 集中管理。
 - **Sentinel 限流熔断（P5）**：网关层用 `spring-cloud-alibaba-sentinel-gateway` 对秒杀下单 API 限流（QPS=100）；seckill-service 用 `@SentinelResource` + 程序化规则做熔断降级（慢调用比例 > 20%）与热点参数限流（商品维度）。规则写死在代码里、不依赖 Dashboard 即可生效，Dashboard 仅作可选的可视化。
 - **多级缓存（P6）**：`common-service` 抽出通用组件 `MultiLevelCache<K, V>`（L1 Caffeine → L2 Redis → L3 DB，逐级回填 + 空值占位防穿透）；写路径采用 Cache-Aside（先更新 DB 后删缓存），并通过 Redis Pub/Sub 广播让其它实例同步删各自 L1，保证多实例最终一致。seckill-service 的秒杀商品、goods-order-service 的正常商品均已接入。
+- **配置中心（P7）**：各服务 `application.yml` 的业务配置（数据源/Redis/MyBatis/JWT/Sentinel 规则/网关路由等）迁到 Nacos Config，本地只保留端口、服务名与 Nacos 连接信息；`jwt.secret` 走共享配置 `seckill-common.yml` 全局一致；Sentinel 限流/熔断阈值与 `jwt.secret` 经 `@RefreshScope` 支持动态刷新（改配置不重启），并按 profile 后缀 dataId 实现 dev/prod 多环境。
 
 ## 六、限流熔断（P5）
 
@@ -115,7 +116,21 @@ cd gateway-service     ; mvn spring-boot:run
 
 关键类：`common-service/.../common/cache/`（`MultiLevelCache`、`MultiLevelCacheRegistry`、`CacheEvictListener`、`MultiLevelCacheConfig`）；接入见各服务的 `CacheConfig` 与 `SeckillGoodsService` / `GoodsService`。原理笔记见 `knowledge/P6-多级缓存知识.md`；JMeter 对比压测见 `docs/P6-JMeter压测.md`。
 
-## 八、后续阶段衔接
+## 八、配置中心（P7）
 
-- P7：把 `application.yml`（含 `jwt.secret`、Sentinel 规则、多级缓存 TTL 等）迁移到 Nacos Config，实现规则动态刷新（不改代码、不重启即可调整限流/熔断阈值）。
+| 项 | 说明 |
+|----|------|
+| 接入方式 | `spring.config.import`（Spring Boot 3 原生，无需 bootstrap） |
+| 共享配置 | `seckill-common.yml`：`jwt.secret` / `jwt.expire-minutes`，所有服务 + 网关统一引入 |
+| 可刷新阈值 | `sentinel.seckill.*`（seckill-service 熔断/热点限流）、`sentinel.gateway.seckill-qps`（网关限流） |
+| 动态刷新 | `@RefreshScope` + `@ConfigurationProperties` 绑定阈值，监听 `RefreshScopeRefreshedEvent` 重载 Sentinel 规则 |
+| JWT 刷新 | `TokenService`（common-service）/ `JwtUtil`（gateway-service）标记 `@RefreshScope`，改密钥即时生效 |
+| 多环境 | `{服务}.yml`（基础）+ `{服务}-dev.yml` / `{服务}-prod.yml`（环境覆盖），`--spring.profiles.active=prod` 切换 |
+
+- 本地 `application.yml` 只保留 `server.port` / `spring.application.name` / Nacos 连接信息，业务配置全部迁到 Nacos。
+- 配置内容与一键发布脚本：`docs/P7-nacos-config/`；实操步骤：`docs/P7-配置中心.md`；原理笔记：`knowledge/P7-配置中心知识.md`。
+
+## 九、后续阶段衔接
+
 - P8：秒杀下单改 MQ 异步削峰。
+- P9：分布式事务（Seata / RocketMQ 事务消息，选做）。

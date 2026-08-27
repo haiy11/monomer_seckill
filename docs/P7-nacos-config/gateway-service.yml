@@ -1,0 +1,38 @@
+# gateway-service 基础配置（所有环境共享，dev/prod 可各自覆盖）。
+spring:
+  cloud:
+    sentinel:
+      # 网关限流监控数据上报地址（可选）：需另行启动 sentinel-dashboard 才能可视化
+      transport:
+        dashboard: localhost:8858
+        port: 8719
+    gateway:
+      # 全局跨域：跨域统一由网关处理（下游各服务不再各自配置 CORS）
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods: "*"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+      # 路由规则：按 API 前缀转发到对应服务（服务名 + 负载均衡 lb://）
+      # 注意：/internal/** 为服务间 Feign 内部接口，不对外暴露，故不配置路由
+      routes:
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/user/**,/api/admin/**,/api/merchant/**
+        - id: goods-order-service
+          uri: lb://goods-order-service
+          predicates:
+            - Path=/api/goods/**,/api/cart/**,/api/order/**
+        - id: seckill-service
+          uri: lb://seckill-service
+          predicates:
+            - Path=/api/seckill/**,/api/seckill-goods/**
+
+# 网关 Sentinel 流控阈值（@RefreshScope 绑定，修改后不重启生效）
+sentinel:
+  gateway:
+    seckill-qps: 100

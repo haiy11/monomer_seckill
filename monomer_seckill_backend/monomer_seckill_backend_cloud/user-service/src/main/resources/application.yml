@@ -4,41 +4,17 @@ server:
 spring:
   application:
     name: user-service
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3307/monomer_seckill?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
-    username: root
-    password: 123456hy
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      database: 0
-      timeout: 3s
-  sql:
-    init:
-      # 建表由 goods-order-service 负责，本服务不执行 DDL
-      mode: never
+  config:
+    import:
+      # P7：配置集中到 Nacos Config。数据源/Redis/MyBatis 等已迁到 Nacos。
+      - optional:nacos:seckill-common.yml
+      - optional:nacos:user-service.yml
+      - optional:nacos:user-service-${spring.profiles.active:dev}.yml
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
-
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-  global-config:
-    banner: false
-    db-config:
-      id-type: auto
-
-logging:
-  level:
-    com.example.seckill: debug
-
-# JWT 鉴权配置（P4）：各服务与网关必须使用同一密钥，否则无法互认 token
-# 注意：secret 长度需 ≥ 32 字节（HS256 要求）；生产环境请改为环境变量/Nacos Config 注入
-jwt:
-  secret: seckill-cloud-jwt-secret-change-me-in-production-123456
-  expire-minutes: 120
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        group: DEFAULT_GROUP

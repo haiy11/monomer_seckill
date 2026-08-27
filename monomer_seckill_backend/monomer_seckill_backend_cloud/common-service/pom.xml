@@ -55,6 +55,13 @@
             <artifactId>spring-tx</artifactId>
         </dependency>
 
+        <!-- Spring Cloud Context（P7）：提供 @RefreshScope 注解与 RefreshScope 作用域，
+             供 TokenService 等公共 Bean 支持配置动态刷新；各服务经 Nacos Config 或本依赖传递获得运行时支持 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-context</artifactId>
+        </dependency>
+
         <!-- MyBatis-Plus：MyMetaObjectHandler 字段填充所需，标记 optional 由具体服务按需引入 -->
         <dependency>
             <groupId>com.baomidou</groupId>

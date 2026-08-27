@@ -1,0 +1,4 @@
+# dev 环境覆盖：开发期打印详细日志。
+logging:
+  level:
+    com.example.seckill: debug

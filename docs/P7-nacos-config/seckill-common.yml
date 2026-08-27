@@ -1,0 +1,5 @@
+# 共享配置（所有服务 + 网关统一引入）：jwt 密钥与有效期全局一致。
+# 修改后发布到 Nacos，各服务 @RefreshScope 的 TokenService/JwtUtil 会动态生效（无需重启）。
+jwt:
+  secret: seckill-cloud-jwt-secret-change-me-in-production-123456
+  expire-minutes: 120

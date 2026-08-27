@@ -1,0 +1,10 @@
+# prod 环境覆盖：收紧日志级别，并进一步收紧秒杀限流阈值示例。
+logging:
+  level:
+    com.example.seckill: info
+
+sentinel:
+  seckill:
+    # 生产环境单商品默认 QPS 与热点商品 QPS 进一步收紧
+    param-flow-default-qps: 8
+    param-flow-hot-qps: 3

@@ -1,0 +1,8 @@
+# prod 环境覆盖：收紧日志级别，并进一步收紧网关秒杀下单限流阈值示例。
+logging:
+  level:
+    com.example.seckill: info
+
+sentinel:
+  gateway:
+    seckill-qps: 80

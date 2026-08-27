@@ -4,53 +4,18 @@ server:
 spring:
   application:
     name: seckill-service
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3307/monomer_seckill?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
-    username: root
-    password: 123456hy
-  data:
-    redis:
-      host: localhost
-      port: 6379
-      database: 0
-      timeout: 3s
-  sql:
-    init:
-      # 建表由 goods-order-service 负责，本服务读写 seckill_goods/seckill_order，不执行 DDL
-      mode: never
+  config:
+    import:
+      # P7：配置集中到 Nacos Config。数据源/Redis/MyBatis/秒杀业务/Sentinel 规则等已迁到 Nacos。
+      # 1) 共享配置（jwt.secret 等所有服务一致）；2) 本服务配置；3) 环境配置（dev 默认，可 --spring.profiles.active=prod 切换）
+      - optional:nacos:seckill-common.yml
+      - optional:nacos:seckill-service.yml
+      - optional:nacos:seckill-service-${spring.profiles.active:dev}.yml
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
-    sentinel:
-      # 立即初始化 Sentinel：确保启动即加载规则、控制台可连（否则首请求才懒加载）
-      eager: true
-      transport:
-        # Sentinel Dashboard 地址（可选）：可视化监控/动态改规则，需另行启动 sentinel-dashboard
-        dashboard: localhost:8858
-        # 本机上报/接收控制台指令的端口（同机多服务需互不相同，避免端口冲突）
-        port: 8720
-
-mybatis-plus:
-  configuration:
-    map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
-  global-config:
-    banner: false
-    db-config:
-      id-type: auto
-
-# 秒杀业务配置（秒杀订单超时回滚）
-seckill:
-  order-timeout-minutes: 15
-  order-timeout-scan-ms: 30000
-
-logging:
-  level:
-    com.example.seckill: debug
-
-# JWT 鉴权配置（P4）：各服务与网关必须使用同一密钥，否则无法互认 token
-jwt:
-  secret: seckill-cloud-jwt-secret-change-me-in-production-123456
-  expire-minutes: 120
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        group: DEFAULT_GROUP

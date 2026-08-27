@@ -1,0 +1,4 @@
+# prod 环境覆盖：收紧日志级别。
+logging:
+  level:
+    com.example.seckill: info

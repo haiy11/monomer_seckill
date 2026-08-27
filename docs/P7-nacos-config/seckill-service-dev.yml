@@ -1,0 +1,4 @@
+# dev 环境覆盖：开发期打印详细日志，便于观察多级缓存命中 / Sentinel 规则加载等调试信息。
+logging:
+  level:
+    com.example.seckill: debug

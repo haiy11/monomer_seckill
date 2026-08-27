@@ -4,47 +4,17 @@ server:
 spring:
   application:
     name: gateway-service
+  config:
+    import:
+      # P7：配置集中到 Nacos Config。网关路由/跨域/Sentinel 流控阈值等已迁到 Nacos。
+      - optional:nacos:seckill-common.yml
+      - optional:nacos:gateway-service.yml
+      - optional:nacos:gateway-service-${spring.profiles.active:dev}.yml
   cloud:
     nacos:
       discovery:
         server-addr: localhost:8848
-    sentinel:
-      # 网关限流监控数据上报地址（可选）：需另行启动 sentinel-dashboard 才能可视化；
-      # 限流规则由代码程序化加载，不依赖控制台也能生效
-      transport:
-        dashboard: localhost:8858
-        port: 8719
-    gateway:
-      # 全局跨域：跨域统一由网关处理（下游各服务不再各自配置 CORS，避免重复 Access-Control-Allow-* 头导致浏览器 Failed to fetch）
-      globalcors:
-        cors-configurations:
-          '[/**]':
-            allowedOriginPatterns: "*"
-            allowedMethods: "*"
-            allowedHeaders: "*"
-            allowCredentials: true
-            maxAge: 3600
-      # 路由规则：按 API 前缀转发到对应服务（服务名 + 负载均衡 lb://）
-      # 注意：/internal/** 为服务间 Feign 内部接口，不对外暴露，故不配置路由
-      routes:
-        - id: user-service
-          uri: lb://user-service
-          predicates:
-            - Path=/api/user/**,/api/admin/**,/api/merchant/**
-        - id: goods-order-service
-          uri: lb://goods-order-service
-          predicates:
-            - Path=/api/goods/**,/api/cart/**,/api/order/**
-        - id: seckill-service
-          uri: lb://seckill-service
-          predicates:
-            - Path=/api/seckill/**,/api/seckill-goods/**
-
-# JWT 鉴权配置（P4）：与各服务保持同一密钥，否则网关鉴权结果与下游不一致
-jwt:
-  secret: seckill-cloud-jwt-secret-change-me-in-production-123456
-  expire-minutes: 120
-
-logging:
-  level:
-    com.example.seckill: debug
+      config:
+        server-addr: localhost:8848
+        file-extension: yml
+        group: DEFAULT_GROUP
