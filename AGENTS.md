@@ -1,10 +1,10 @@
 # AGENTS.md
 
-秒杀学习项目（Spring Boot 3 + MyBatis-Plus + Redis + Spring Cloud Alibaba/Nacos/OpenFeign）。
+秒杀学习项目（Spring Boot 3 + MyBatis-Plus + Redis + RabbitMQ + Spring Cloud Alibaba/Nacos/OpenFeign）。
 
 后端有两套，互不影响：
 - 单体版（P2）：`monomer_seckill_backend/monomer_seckill_backend/`（两层目录，端口 7099）
-- 微服务版（P3~P7）：`monomer_seckill_backend/monomer_seckill_backend_cloud/`（父 pom + common-service / user-service / goods-order-service / seckill-service / gateway-service，业务端口 7001/7002/7003，网关统一入口 8080）
+- 微服务版（P3~P8）：`monomer_seckill_backend/monomer_seckill_backend_cloud/`（父 pom + common-service / user-service / goods-order-service / seckill-service / gateway-service，业务端口 7001/7002/7003，网关统一入口 8080）
 
 前端在 `monomer_seckill_fromend/`：
 - 单体版：`monomer_seckill_fromend/monomer/index.html`（调 7099）
@@ -16,7 +16,7 @@
 | Skill | 何时加载 |
 | --- | --- |
 | `seckill-overview` | 首次接触项目 / 看整体结构、技术栈、路线图、API 接口清单 |
-| `seckill-environment` | 涉及 MySQL / Redis / WSL / 端口 / 中间件连接 |
+| `seckill-environment` | 涉及 MySQL / Redis / RabbitMQ / WSL / 端口 / 中间件连接 |
 | `seckill-build-run` | 编译 / 打包 / 启动 / 运行 / 联调 / 排查构建报错 |
 | `seckill-database` | 建表 / 改表 / 写 SQL / 查数据 |
 | `seckill-code` | 写 / 改 Java 代码、理解秒杀业务、遵循编码规范 |
@@ -34,6 +34,7 @@
 - P5 限流熔断 JMeter 压测：`docs/P5-JMeter压测.md`、`docs/P5-seckill-gateway-limit.jmx`
 - P6 多级缓存 JMeter 压测：`docs/P6-JMeter压测.md`、`docs/P6-seckill-goods-cache.jmx`
 - P7 配置中心：`docs/P7-配置中心.md`、`docs/P7-nacos-config/`（dataId 配置 + 一键发布脚本 `publish-configs.ps1`）
+- P8 消息队列：`docs/P8-消息队列.md`（RabbitMQ 异步削峰 + 死信队列实操）
 - 完整路线图：`monomer_seckill_plan.md`
-- 微服务知识点笔记：`knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`、`knowledge/P6-多级缓存知识.md`、`knowledge/P7-配置中心知识.md`
+- 微服务知识点笔记：`knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`、`knowledge/P6-多级缓存知识.md`、`knowledge/P7-配置中心知识.md`、`knowledge/P8-消息队列知识.md`
 - 微服务工程说明：`monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`

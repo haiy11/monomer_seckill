@@ -1,15 +1,16 @@
-# 秒杀商城（单体 P2 + 微服务 P3~P7）
+# 秒杀商城（单体 P2 + 微服务 P3~P8）
 
 秒杀学习项目：P2 完成**单体版**（Redis 预扣库存 + Lua 秒杀 + 三角色商城），
 P3 完成**微服务拆分**（Spring Cloud Alibaba + Nacos 注册发现 + OpenFeign 远程调用），
 P4 完成**统一流量入口**（Spring Cloud Gateway 路由转发 + JWT 鉴权），
 P5 完成**高可用限流熔断**（Sentinel 网关限流 + 服务熔断降级 + 热点参数限流），
 P6 完成**多级缓存优化**（Caffeine 本地缓存 + Redis 分布式缓存 + Pub/Sub 失效广播），
-P7 完成**配置中心 + 动态刷新**（Nacos Config 配置集中管理 + @RefreshScope 动态刷新 + dev/prod 多环境）。
+P7 完成**配置中心 + 动态刷新**（Nacos Config 配置集中管理 + @RefreshScope 动态刷新 + dev/prod 多环境），
+P8 完成**异步削峰解耦**（RabbitMQ 消息队列 + 死信队列 DLX 处理超时未支付自动取消）。
 
-> 微服务版详见 `monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`，知识点笔记见 `knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`、`knowledge/P6-多级缓存知识.md`、`knowledge/P7-配置中心知识.md`。
+> 微服务版详见 `monomer_seckill_backend/monomer_seckill_backend_cloud/README.md`，知识点笔记见 `knowledge/P3-微服务知识.md`、`knowledge/P4-网关微服务和JWT鉴权知识.md`、`knowledge/P5-限流熔断知识.md`、`knowledge/P6-多级缓存知识.md`、`knowledge/P7-配置中心知识.md`、`knowledge/P8-消息队列知识.md`。
 
-## 微服务版（P3~P7）
+## 微服务版（P3~P8）
 
 后端在 `monomer_seckill_backend/monomer_seckill_backend_cloud/`，拆为 5 个模块（共享一个 MySQL 库）：
 
@@ -18,11 +19,12 @@ P7 完成**配置中心 + 动态刷新**（Nacos Config 配置集中管理 + @Re
 | `common-service` | 公共库（不注册） | 统一响应体/异常/认证/Redis 工具/CORS 等基础设施；P6 起多级缓存通用组件（`MultiLevelCache` + Redis Pub/Sub 失效广播）；P7 起 `TokenService` 支持 `@RefreshScope`（jwt 密钥动态刷新） |
 | `user-service` | user-service / 7001 | 用户 + 管理员 + 商家 |
 | `goods-order-service` | goods-order-service / 7002 | 商品 + 购物车 + 正常订单；P6 起商品详情走多级缓存 |
-| `seckill-service` | seckill-service / 7003 | 秒杀（秒杀商品/库存/秒杀订单全链路）；P5 起 Sentinel 熔断降级 + 热点参数限流；P6 起热点秒杀商品信息走 Caffeine → Redis → DB 多级缓存；P7 起 Sentinel 阈值配置化 + 动态刷新 |
+| `seckill-service` | seckill-service / 7003 | 秒杀（秒杀商品/库存/秒杀订单全链路）；P5 起 Sentinel 熔断降级 + 热点参数限流；P6 起热点秒杀商品信息走 Caffeine → Redis → DB 多级缓存；P7 起 Sentinel 阈值配置化 + 动态刷新；P8 起 RabbitMQ 异步削峰（Redis 预扣 → MQ → 异步建单）+ 死信队列处理超时未支付取消 |
 | `gateway-service` | gateway-service / 8080 | 统一入口：路由转发 + JWT 鉴权（P4）+ Sentinel 网关限流（P5，阈值 P7 起动态刷新） |
 
 > P6 起，热点商品信息（秒杀商品 / 正常商品）走「Caffeine 本地缓存 → Redis 分布式缓存 → DB」多级缓存；写路径采用 Cache-Aside（更新 DB 后删缓存）+ Redis Pub/Sub 失效广播，保证多实例最终一致。
 > P7 起，各服务业务配置（数据源/Redis/MyBatis/JWT/Sentinel 阈值/网关路由等）集中到 Nacos Config（本地只留端口/服务名/Nacos 连接），Sentinel 限流熔断阈值与 `jwt.secret` 经 `@RefreshScope` 动态刷新（改配置不重启），并按 profile 后缀 dataId 实现 dev/prod 多环境。
+> P8 起，秒杀下单改「Redis 预扣 → RabbitMQ 消息 → 消费者异步落库」实现削峰解耦；订单超时未支付由「延迟队列 + 死信队列（DLX）」自动关闭回补库存（替代定时扫描），消息走 JSON 序列化 + 发布确认 + 消费幂等。详见 `knowledge/P8-消息队列知识.md`、`docs/P8-消息队列.md`。
 
 前端在 `monomer_seckill_fromend/`：
 - `monomer/index.html`：单体版（调 7099）

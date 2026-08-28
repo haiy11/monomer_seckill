@@ -1,6 +1,6 @@
 ---
 name: seckill-environment
-description: "涉及 MySQL、Redis、WSL2 Docker 容器、端口、数据库/缓存连接配置时使用。含中间件地址账号、容器清单、端口唤醒方法、后端连接配置要点。"
+description: "涉及 MySQL、Redis、RabbitMQ、WSL2 Docker 容器、端口、数据库/缓存/消息队列连接配置时使用。含中间件地址账号、容器清单、端口唤醒方法、后端连接配置要点。"
 ---
 
 # 环境与外部依赖
@@ -13,6 +13,8 @@ description: "涉及 MySQL、Redis、WSL2 Docker 容器、端口、数据库/缓
 |------|------|-----------|------|
 | MySQL | `localhost:3307` | `root` / `123456hy` | 数据库 `monomer_seckill` 由后端启动时通过 `createDatabaseIfNotExist=true` 自动创建 |
 | Redis | `localhost:6379` | 无密码 | |
+| RabbitMQ | `localhost:5672` / 管理台 `15672` | `admin` / `admin123` | P8 起秒杀下单异步削峰 + 死信队列；vhost 默认 `/`，管理台 `http://localhost:15672` |
+| Nacos | `localhost:8848` / 9848 | 默认未开启鉴权 | 注册中心 + 配置中心（P7 起） |
 
 ## WSL2 容器与端口唤醒
 

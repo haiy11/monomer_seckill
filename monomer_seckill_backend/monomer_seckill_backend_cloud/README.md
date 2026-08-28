@@ -66,7 +66,7 @@ user-service (7001)
 
 ## 四、启动步骤
 
-1. 保证中间件就绪：MySQL(`localhost:3307`)、Redis(`localhost:6379`)、Nacos(`localhost:8848`)。
+1. 保证中间件就绪：MySQL(`localhost:3307`)、Redis(`localhost:6379`)、Nacos(`localhost:8848`)、RabbitMQ(`localhost:5672` / 管理台 `15672`，账号 `admin`/`admin123`)。P8 起需把 `docs/P7-nacos-config/` 的最新配置重新发布到 Nacos（`publish-configs.ps1`，因 `seckill-service.yml` 新增了 `spring.rabbitmq.*`）。
 2. 切换 JDK 21 + Maven 3.9.10（见 `seckill-build-run` skill）。
 3. **先启动 `goods-order-service`**（负责建表 + 用户/商品种子数据），再启动 `seckill-service`（秒杀商品种子 + 库存预载）、`user-service`，最后启动 `gateway-service`（统一入口）。
 
