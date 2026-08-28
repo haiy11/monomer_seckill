@@ -4,19 +4,19 @@ import com.alibaba.csp.sentinel.annotation.SentinelResource;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 import com.alibaba.csp.sentinel.slots.block.flow.param.ParamFlowException;
-import com.example.seckill.common.core.BizException;
 import com.example.seckill.common.core.Result;
 import com.example.seckill.seckill.constant.SeckillConstants;
 import com.example.seckill.seckill.entity.SeckillGoods;
-import com.example.seckill.seckill.entity.SeckillOrder;
-import org.springframework.dao.DuplicateKeyException;
+import com.example.seckill.seckill.mq.SeckillMqProducer;
+import com.example.seckill.seckill.mq.SeckillOrderMessage;
 import org.springframework.stereotype.Service;
 
 /**
- * 秒杀核心服务：校验可购买 → Redis 预扣库存 → 创建秒杀订单。
+ * 秒杀核心服务（P8 异步削峰）：校验可购买 → Redis 预扣库存 → 发送 MQ 消息 → 立即返回。
  *
- * <p>秒杀下单链路（商品校验、Redis 预扣、DB 扣减、订单落库）完全在秒杀域内闭环，
- * 高并发流量与其它服务隔离。</p>
+ * <p>P8 起，请求线程不再同步执行「DB 扣库存 + 落订单」，改为 Redis Lua 预扣成功后发送消息、
+ * 立即返回订单号；DB 落库由 {@code SeckillOrderCreateListener} 异步完成。这样把瞬时高并发
+ * 请求「削」成 MQ 消费者可承受的匀速写入，同时解耦了请求链路与数据库写链路。</p>
  *
  * @author haiy
  * @date 2026/08/17
@@ -27,12 +27,14 @@ public class SeckillService {
     private final SeckillGoodsService seckillGoodsService;
     private final StockService stockService;
     private final SeckillOrderService seckillOrderService;
+    private final SeckillMqProducer seckillMqProducer;
 
     public SeckillService(SeckillGoodsService seckillGoodsService, StockService stockService,
-                          SeckillOrderService seckillOrderService) {
+                          SeckillOrderService seckillOrderService, SeckillMqProducer seckillMqProducer) {
         this.seckillGoodsService = seckillGoodsService;
         this.stockService = stockService;
         this.seckillOrderService = seckillOrderService;
+        this.seckillMqProducer = seckillMqProducer;
     }
 
     /**
@@ -40,7 +42,7 @@ public class SeckillService {
      *
      * @param seckillGoodsId 秒杀商品ID
      * @param userId         用户ID
-     * @return 成功携带订单号
+     * @return 成功携带订单号（订单由消息消费者异步落库）
      */
     @SentinelResource(value = "seckill", blockHandler = "seckillBlockHandler")
     public Result<String> seckill(Long seckillGoodsId, Long userId) {
@@ -51,7 +53,7 @@ public class SeckillService {
         // 1. 校验秒杀商品存在、已上架且在时间窗口内（不满足抛业务异常）
         SeckillGoods sg = seckillGoodsService.requirePurchasable(seckillGoodsId);
 
-        // 2. Redis 原子预扣库存
+        // 2. Redis 原子预扣库存（判库存 + 判重复 + 扣库存 + 记用户）
         long code = stockService.deduct(seckillGoodsId, userId);
         if (code == SeckillConstants.LUA_STOCK_EMPTY) {
             return Result.fail("手慢了，库存不足");
@@ -60,20 +62,16 @@ public class SeckillService {
             return Result.fail("您已抢购过该秒杀商品");
         }
 
-        // 3. 创建秒杀订单（DB 扣库存 + 插订单），失败时回滚 Redis
+        // 3. 预生成订单号 + 发送下单消息（发布确认），失败则回滚 Redis 预扣
+        String orderNo = seckillOrderService.generateOrderNo("SO");
+        SeckillOrderMessage message = SeckillOrderMessage.of(orderNo, seckillGoodsId, userId, sg.getSeckillPrice());
         try {
-            SeckillOrder order = seckillOrderService.createSeckillOrder(seckillGoodsId, userId, sg.getSeckillPrice());
-            return Result.ok(order.getOrderNo());
-        } catch (DuplicateKeyException e) {
-            stockService.rollbackRedis(seckillGoodsId, userId);
-            return Result.fail("您已抢购过该秒杀商品");
-        } catch (BizException e) {
-            stockService.rollbackRedis(seckillGoodsId, userId);
-            return Result.fail(e.getMessage());
+            seckillMqProducer.sendCreateOrder(message);
         } catch (Exception e) {
             stockService.rollbackRedis(seckillGoodsId, userId);
             throw e;
         }
+        return Result.ok(orderNo);
     }
 
     /**

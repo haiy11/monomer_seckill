@@ -11,6 +11,23 @@ spring:
       port: 6379
       database: 0
       timeout: 3s
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: "admin123"
+    virtual-host: /
+    # 发布确认（correlated）：保证「Redis 预扣后发消息」不丢，消息投递失败可感知
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        # AUTO：监听器正常返回即 ack，抛异常则 reject（默认 requeue 重新投递）
+        acknowledge-mode: auto
+        # 削峰核心：消费者并发 + 预取数，把瞬时高并发「削」成受控的 DB 写入速率
+        concurrency: 4
+        max-concurrency: 16
+        prefetch: 50
   sql:
     init:
       # 建表由 goods-order-service 负责，本服务读写 seckill_goods/seckill_order，不执行 DDL
@@ -34,10 +51,9 @@ mybatis-plus:
     db-config:
       id-type: auto
 
-# 秒杀业务配置（秒杀订单超时回滚）
+# 秒杀业务配置（P8：订单超时分钟数，用于延迟队列消息 TTL）
 seckill:
   order-timeout-minutes: 15
-  order-timeout-scan-ms: 30000
 
 # Sentinel 秒杀服务规则阈值（@RefreshScope 绑定，修改后不重启生效）
 sentinel:

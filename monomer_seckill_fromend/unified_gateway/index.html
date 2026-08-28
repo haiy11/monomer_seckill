@@ -429,7 +429,7 @@ async function doSeckill(i) {
   if (!confirm('确认以 ¥' + fmtPrice(s.seckillPrice) + ' 抢购「' + s.name + '」？')) return;
   try {
     const orderNo = await request('/api/seckill/' + s.id, { method: 'POST', token: getToken() });
-    toast('秒杀成功！订单号：' + orderNo + '，请到「我的订单」支付');
+    toast('抢购受理成功！订单号：' + orderNo + '，订单正在异步创建，请稍后到「我的订单」查看并支付');
     loadSeckill();
     loadOrders();
   } catch (e) { toast(e.message, false); }
