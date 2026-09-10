@@ -151,4 +151,7 @@ cd gateway-service     ; mvn spring-boot:run
 
 ## 十、后续阶段衔接
 
-- P9：分布式事务（Seata / RocketMQ 事务消息，选做）。
+- **P9（分布式事务）不实施**：本工程把「下单 + 扣库存」放在 `seckill-service` 自己的库、同一个本地事务里
+  （`SeckillOrderService.createSeckillOrder`，天然强一致、防超卖），架构上不存在跨库分布式事务；
+  P8 已用「Redis 预扣 → RabbitMQ 异步落库」实现削峰与最终一致（发布确认 + 按 orderNo 幂等消费 + 死信回补）。
+  对秒杀这类高并发场景，Seata 强一致方案会引入全局锁、拖垮吞吐，属负优化，故不做。
